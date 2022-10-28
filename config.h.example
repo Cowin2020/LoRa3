@@ -1,0 +1,18 @@
+/* Network ID */
+#undef DEVICE_ID
+#define DEVICE_ID 0
+#undef NUMBER_OF_DEVICES
+#define NUMBER_OF_DEVICES 2
+
+/* Features */
+#define ENABLE_LED
+#define ENABLE_COM_OUTPUT
+#define ENABLE_OLED_OUTPUT
+#define ENABLE_CLOCK CLOCK_DS3231
+#define ENABLE_SLEEP
+
+/* Software Parameters */
+#undef WIFI_SSID
+#undef WIFI_PASS
+#define WIFI_SSID "My WiFi ID"
+#define WIFI_PASS "WiFi password"
