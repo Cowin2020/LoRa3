@@ -9,6 +9,10 @@
 #define DEVICE_ID 0
 #define NUMBER_OF_DEVICES 2
 
+/* Network Constants */
+#define DEVICE_SENDER 0
+#define DEVICE_RECEIVER 1
+
 /* Feature Constants */
 #define CLOCK_PCF85063TP 1
 #define CLOCK_DS1307 2
@@ -71,6 +75,20 @@
 
 #include "config.h"
 
+#ifndef DEVICE_TYPE
+	#if DEVICE_ID == 0
+		#define DEVICE_TYPE DEVICE_RECEIVER
+	#else
+		#define DEVICE_TYPE DEVICE_SENDER
+	#endif
+#endif
+
+#ifndef UPLOAD_INTERVAL
+	#define UPLOAD_INTERVAL (ACK_TIMEOUT * (RESEND_TIMES + 2))
+#endif
+
+/* ************************************************************************** */
+
 #include <stdlib.h>
 #include <time.h>
 #include <cstring>
@@ -111,9 +129,9 @@ namespace LED {
 		}
 
 		static void flash(void) {
-			digitalWrite(LED_BUILTIN, HIGH);
-			delay(200);
-			digitalWrite(LED_BUILTIN, LOW);
+			static bool light = false;
+			digitalWrite(LED_BUILTIN, light ? HIGH : LOW);
+			light = !light;
 			delay(200);
 		}
 	#else
@@ -261,7 +279,8 @@ struct [[gnu::packed]] FullTime {
 	unsigned char hour;
 	unsigned char minute;
 	unsigned char second;
-	explicit operator String(void) const;
+
+	operator String(void) const;
 };
 
 FullTime::operator String(void) const {
@@ -275,103 +294,189 @@ FullTime::operator String(void) const {
 	return String(buffer);
 }
 
-#ifdef ENABLE_CLOCK
-	#if ENABLE_CLOCK == CLOCK_PCF85063TP
-		#include <PCF85063TP.h>
+#ifndef ENABLE_CLOCK
+	#include <RTClib.h>
 
-		namespace RTC {
-			class PCD85063TP external_clock;
+	namespace RTC {
+		static bool clock_available;
+		static class RTC_Millis internal_clock;
 
-			static bool initialize(void) {
-				external_clock.begin();
-				external_clock.startClock();
-				return true;
-			}
+		static bool initialize(void) {
+			clock_available = false;
+			return true;
+		}
 
-			static void set(struct FullTime const *const fulltime) {
-				external_clock.stopClock();
-				external_clock.fillByYMD(fulltime->year, fulltime->month, fulltime->day);
-				external_clock.fillByHMS(fulltime->hour, fulltime->minute, fulltime->second);
-				external_clock.setTime();
-				external_clock.startClock();
-			}
-
-			static bool ready(void) {
-				static bool available = false;
-				if (available) return true;
-				external_clock.getTime();
-				available =
-					1 <= external_clock.year       && external_clock.year       <= 99 &&
-					1 <= external_clock.month      && external_clock.month      <= 12 &&
-					1 <= external_clock.dayOfMonth && external_clock.dayOfMonth <= 30 &&
-					0 <= external_clock.hour       && external_clock.hour       <= 23 &&
-					0 <= external_clock.minute     && external_clock.minute     <= 59 &&
-					0 <= external_clock.second     && external_clock.second     <= 59;
-				return available;
-			}
-
-			static struct FullTime now(void) {
-				external_clock.getTime();
-				return (struct FullTime){
-					.year = (unsigned short int)(2000U + external_clock.year),
-					.month = external_clock.month,
-					.day = external_clock.dayOfMonth,
-					.hour = external_clock.hour,
-					.minute = external_clock.minute,
-					.second = external_clock.second
-				};
+		static void set(struct FullTime const *const fulltime) {
+			class DateTime const datetime(
+				fulltime->year, fulltime->month, fulltime->day,
+				fulltime->hour, fulltime->minute, fulltime->second
+			);
+			if (clock_available) {
+				internal_clock.adjust(datetime);
+			} else {
+				internal_clock.begin(datetime);
+				clock_available = true;
 			}
 		}
-	#elif ENABLE_CLOCK == CLOCK_DS1307 || ENABLE_CLOCK == CLOCK_DS3231
-		#include <RTClib.h>
 
-		namespace RTC {
+		static bool ready(void) {
+			return clock_available;
+		}
+
+		static struct FullTime now(void) {
+			class DateTime const datetime = internal_clock.now();
+			return (struct FullTime){
+				.year = (unsigned short int)datetime.year(),
+				.month = (unsigned char)datetime.month(),
+				.day = (unsigned char)datetime.day(),
+				.hour = (unsigned char)datetime.hour(),
+				.minute = (unsigned char)datetime.minute(),
+				.second = (unsigned char)datetime.second()
+			};
+		}
+	}
+#elif ENABLE_CLOCK == CLOCK_PCF85063TP
+	#include <PCF85063TP.h>
+
+	namespace RTC {
+		static class PCD85063TP external_clock;
+
+		static bool initialize(void) {
+			external_clock.begin();
+			external_clock.startClock();
+			return true;
+		}
+
+		static void set(struct FullTime const *const fulltime) {
+			external_clock.stopClock();
+			external_clock.fillByYMD(fulltime->year, fulltime->month, fulltime->day);
+			external_clock.fillByHMS(fulltime->hour, fulltime->minute, fulltime->second);
+			external_clock.setTime();
+			external_clock.startClock();
+		}
+
+		static bool ready(void) {
+			static bool available = false;
+			if (available) return true;
+			external_clock.getTime();
+			available =
+				1 <= external_clock.year       && external_clock.year       <= 99 &&
+				1 <= external_clock.month      && external_clock.month      <= 12 &&
+				1 <= external_clock.dayOfMonth && external_clock.dayOfMonth <= 30 &&
+				0 <= external_clock.hour       && external_clock.hour       <= 23 &&
+				0 <= external_clock.minute     && external_clock.minute     <= 59 &&
+				0 <= external_clock.second     && external_clock.second     <= 59;
+			return available;
+		}
+
+		static struct FullTime now(void) {
+			external_clock.getTime();
+			return (struct FullTime){
+				.year = (unsigned short int)(2000U + external_clock.year),
+				.month = external_clock.month,
+				.day = external_clock.dayOfMonth,
+				.hour = external_clock.hour,
+				.minute = external_clock.minute,
+				.second = external_clock.second
+			};
+		}
+	}
+#elif ENABLE_CLOCK == CLOCK_DS1307 || ENABLE_CLOCK == CLOCK_DS3231
+	#include <RTClib.h>
+
+	namespace RTC {
+		#if ENABLE_CLOCK == CLOCK_DS1307
+			static class RTC_DS1307 external_clock;
+		#elif ENABLE_CLOCK == CLOCK_DS3231
+			static class RTC_DS3231 external_clock;
+		#endif
+
+		static bool initialize(void) {
+			if (!external_clock.begin()) {
+				any_println("Clock not found");
+				return false;
+			}
 			#if ENABLE_CLOCK == CLOCK_DS1307
-				class RTC_DS1307 external_clock;
-			#elif ENABLE_CLOCK == CLOCK_DS3231
-				class RTC_DS3231 external_clock;
-			#endif
-
-			static bool initialize(void) {
-				if (!external_clock.begin()) {
-					any_println("Clock not found");
+				if (!external_clock.isrunning()) {
+					any_println("DS1307 not running");
 					return false;
 				}
-				#if ENABLE_CLOCK == CLOCK_DS1307
-					if (!external_clock.isrunning()) {
-						any_println("DS1307 not running");
-						return false;
-					}
+			#endif
+			return true;
+		}
+
+		static void set(struct FullTime const *const fulltime) {
+			class DateTime const datetime(
+				fulltime->year, fulltime->month, fulltime->day,
+				fulltime->hour, fulltime->minute, fulltime->second
+			);
+			external_clock.adjust(datetime);
+		}
+
+		static bool ready(void) {
+			class DateTime const datetime = external_clock.now();
+			return datetime.isValid();
+		}
+
+		static struct FullTime now(void) {
+			class DateTime const datetime = external_clock.now();
+			return (struct FullTime){
+				.year = datetime.year(),
+				.month = datetime.month(),
+				.day = datetime.day(),
+				.hour = datetime.hour(),
+				.minute = datetime.minute(),
+				.second = datetime.second()
+			};
+		}
+	}
+#endif
+
+#if DEVICE_TYPE == DEVICE_RECEIVER
+	#include <NTPClient.h>
+
+	namespace NTP {
+		static class WiFiUDP WiFiUDP;
+		static class NTPClient NTP(WiFiUDP, NTP_SERVER);
+
+		inline static bool ready(void) {
+			return NTP.isTimeSet();
+		}
+
+		static struct FullTime now(void) {
+			time_t const epoch = NTP.getEpochTime();
+			struct tm time;
+			gmtime_r(&epoch, &time);
+			return (struct FullTime){
+				.year = (unsigned short int)(1900U + time.tm_year),
+				.month = (unsigned char)(time.tm_mon + 1),
+				.day = (unsigned char)time.tm_mday,
+				.hour = (unsigned char)time.tm_hour,
+				.minute = (unsigned char)time.tm_min,
+				.second = (unsigned char)time.tm_sec
+			};
+		}
+
+		static void synchronize_NTP(void) {
+			if (NTP.update()) {
+				COM::println("NTP update");
+				#ifdef ENABLE_CLOCK
+					time_t const epoch = NTP.getEpochTime();
+					struct tm time;
+					gmtime_r(&epoch, &time);
+					struct FullTime const fulltime = {
+						.year = (unsigned short int)(1900U + time.tm_year),
+						.month = (unsigned char)(time.tm_mon + 1),
+						.day = (unsigned char)time.tm_mday,
+						.hour = (unsigned char)time.tm_hour,
+						.minute = (unsigned char)time.tm_min,
+						.second = (unsigned char)time.tm_sec
+					};
+					RTC::set(&fulltime);
 				#endif
-				return true;
-			}
-
-			static void set(struct FullTime const *const fulltime) {
-				class DateTime const datetime(
-					fulltime->year, fulltime->month, fulltime->day,
-					fulltime->hour, fulltime->minute, fulltime->second
-				);
-				external_clock.adjust(datetime);
-			}
-
-			static bool ready(void) {
-				class DateTime const datetime = external_clock.now();
-				return datetime.isValid();
-			}
-
-			static struct FullTime now(void) {
-				class DateTime const datetime = external_clock.now();
-				return (struct FullTime){
-					.year = datetime.year(),
-					.month = datetime.month(),
-					.day = datetime.day(),
-					.hour = datetime.hour(),
-					.minute = datetime.minute(),
-					.second = datetime.second()
-				};
 			}
 		}
-	#endif
+	}
 #endif
 
 /* ************************************************************************** */
@@ -539,6 +644,7 @@ struct [[gnu::packed]] Data {
 	#ifdef ENABLE_LTR390
 		float ltr390_ultraviolet;
 	#endif
+
 	void writeln(class Print *print) const;
 	bool readln(class Stream *stream);
 };
