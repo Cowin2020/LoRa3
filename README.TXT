@@ -113,16 +113,25 @@ Each device should have a unique ID.
 Type: Single byte integer
 Values:
 	0
-		LoRa-WiFi gateway
+		LoRa-WiFi gateway (optional measurement)
 	1-255
-		terminal measuring device
+		terminal measurement devices
 
-NUMBER_OF_SENDERS
+NUMBER_OF_DEVICES
 -----------------
 
-Number of terminal devices
+Number of devices, including all gateway and measurment devices
 
-Values: 1-255
+Values: 1-256
+
+ENABLE_MEASURE
+--------------
+
+Measure data
+
+Type: defined or undefined
+
+Should be defined for devices 1-255, and optional for device 0.
 
 ENABLE_LED
 ----------
@@ -270,7 +279,7 @@ Type: natural number
 RESEND_TIMES
 ------------
 
-Times to resend data if ACK is not received
+Number of times to resend data if ACK is not received
 
 Type: natural number
 
@@ -340,6 +349,9 @@ CPU_FREQUENCY
 Change CPU frequency to given value
 
 Type: undefined or 240 or 160 or 80 or 40 or 20
+
+LoRa works only on CPU frequency equal or greater than 20Hz.
+WiFi needs 80Hz or higher.
 
 COM_BAUD
 --------

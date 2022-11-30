@@ -1,18 +1,64 @@
 /* Network ID */
-#undef DEVICE_ID
 #define DEVICE_ID 0
-#undef NUMBER_OF_DEVICES
 #define NUMBER_OF_DEVICES 2
 
+/* Debug */
+#define NDEBUG
+
 /* Features */
-#define ENABLE_LED
-#define ENABLE_COM_OUTPUT
-#define ENABLE_OLED_OUTPUT
-#define ENABLE_CLOCK CLOCK_DS3231
-#define ENABLE_SLEEP
+//#define ENABLE_MEASURE
+#if !defined(DEVICE_TYPE)
+	#if DEVICE_ID == 0
+		#if !defined(ENABLE_GATEWAY)
+			#define ENABLE_GATEWAY
+		#endif
+	#else
+		#if !defined(ENABLE_MEASURE)
+			#define ENABLE_MEASURE
+		#endif
+	#endif
+#endif
+//#define ENABLE_LED
+//#define ENABLE_COM_OUTPUT
+//#define ENABLE_OLED_OUTPUT
+//#define ENABLE_SD_CARD
+//#if DEVICE_ID != 0
+//	#define ENABLE_SLEEP
+//	#define ENABLE_CLOCK CLOCK_DS3231
+//#endif
+//#define ENABLE_BATTERY_GAUGE BATTERY_GAUGE_DFROBOT
+//#define ENABLE_DALLAS
+//#define ENABLE_BME280
+//#define ENABLE_LTR390
 
 /* Software Parameters */
-#undef WIFI_SSID
-#undef WIFI_PASS
 #define WIFI_SSID "My WiFi ID"
 #define WIFI_PASS "WiFi password"
+#define HTTP_UPLOAD_FORMAT "http://www.example.com/upload?device=%1$u&serial=%2$u&time=%3$s"
+#define HTTP_UPLOAD_LENGTH 256
+#define HTTP_AUTHORIZATION_TYPE ""
+#define HTTP_AUTHORIZATION_CODE ""
+#define NTP_SERVER "stdtime.gov.hk"
+#define SECRET_KEY "This is secret!"
+
+#define NTP_INTERVAL 654321UL /* milliseconds */
+#define SYNCHONIZE_INTERVAL 7654321UL /* milliseconds */
+#define RESEND_TIMES 3
+#define ACK_TIMEOUT 1000UL /* milliseconds */
+#define SEND_INTERVAL 6000UL /* milliseconds */ /* MUST: > ACK_TIMEOUT * RESEND_TIMES */
+#define MEASURE_INTERVAL 60000UL /* milliseconds */ /* MUST: > SEND_INTERVAL */
+
+/* Hardware Parameters */
+#if !defined(ENABLE_GATEWAY)
+	#define CPU_FREQUENCY 20 /* MUST: >= 20 for LoRa, and >= 80 for WiFi */
+#endif
+#if defined(ENABLE_GATEWAY) && !(CPU_FREQUENCY >= 80)
+	#undef CPU_FREQUENCY
+	#define CPU_FREQUENCY 80
+#endif
+#if !(CPU_FREQUENCY >= 20)
+	#undef CPU_FREQUENCY
+	#define CPU_FREQUENCY 20
+#endif
+#define COM_BAUD 115200
+#define DALLAS_PIN 3

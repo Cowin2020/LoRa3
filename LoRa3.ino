@@ -2,13 +2,6 @@
 
 /* ************************************************************************** */
 
-/* Debug */
-#define NDEBUG
-
-/* Network ID */
-#define DEVICE_ID 0
-#define NUMBER_OF_DEVICES 2
-
 /* Feature Constants */
 #define CLOCK_PCF85063TP 1
 #define CLOCK_DS1307 2
@@ -16,48 +9,19 @@
 #define BATTERY_GAUGE_DFROBOT 1
 #define BATTERY_GAUGE_LC709203F 2
 
-/* Features */
-//	#define ENABLE_LED
-//	#define ENABLE_COM_OUTPUT
-//	#define ENABLE_OLED_OUTPUT
-//	#define ENABLE_CLOCK CLOCK_DS3231
-//	#define ENABLE_SD_CARD
-//	#define ENABLE_SLEEP
-//	#define ENABLE_BATTERY_GAUGE BATTERY_GAUGE_DFROBOT
-//	#define ENABLE_DALLAS
-//	#define ENABLE_BME280
-//	#define ENABLE_LTR390
-// #define ENABLE_MEASURE
-// #define ENABLE_UPLOAD
-
 /* Software Parameters */
-#define WIFI_SSID "SSID"
-#define WIFI_PASS "PASSWORD"
-#define HTTP_UPLOAD_FORMAT "http://www.example.com/upload?device=%1$u&serial=%2$u&time=%3$s"
-#define HTTP_UPLOAD_LENGTH 256
-#define HTTP_AUTHORIZATION_TYPE ""
-#define HTTP_AUTHORIZATION_CODE ""
-#define NTP_SERVER "stdtime.gov.hk"
-#define SECRET_KEY "This is secret!"
 #define DATA_FILE_PATH "/data.csv"
 #define CLEANUP_FILE_PATH "/cleanup.csv"
 #define SYNCHONIZE_INTERVAL 7654321UL /* milliseconds */
 #define SYNCHONIZE_MARGIN 1234UL /* milliseconds */
-#define RESEND_TIMES 3
-#define ACK_TIMEOUT 1000UL /* milliseconds */
-#define UPLOAD_INTERVAL 6000UL /* milliseconds */
 #define CLEANLOG_INTERVAL 86400000UL /* milliseconds */
-#define MEASURE_INTERVAL 60000UL /* milliseconds */ /* MUST: > UPLOAD_INTERVAL */
 #define SLEEP_MARGIN 1000 /* milliseconds */
 #define ROUTER_TOPOLOGY {}
 
 /* Hardware Parameters */
-#define CPU_FREQUENCY 20
-#define COM_BAUD 115200
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 #define OLED_I2C_ADDR 0x3C
-#define DALLAS_PIN 3
 #define LORA_BAND 868000000
 
 /* Protocol Constants */
@@ -73,20 +37,16 @@
 
 #include "config.h"
 
-#if !defined(DEVICE_TYPE)
-	#if DEVICE_ID == 0
-		#if !defined(ENABLE_UPLOAD)
-			#define ENABLE_UPLOAD
-		#endif
-	#else
-		#if !defined(ENABLE_MEASURE)
-			#define ENABLE_MEASURE
-		#endif
-	#endif
+#if !defined(DEVICE_ID)
+	#error "ERROR: undefined DEVICE_ID"
 #endif
 
-#ifndef UPLOAD_INTERVAL
-	#define UPLOAD_INTERVAL (ACK_TIMEOUT * (RESEND_TIMES + 2))
+#if !defined(NUMBER_OF_DEVICES)
+	#error "ERROR: undefined NUMBER_OF_DEVICES"
+#endif
+
+#ifndef SEND_INTERVAL
+	#define SEND_INTERVAL (ACK_TIMEOUT * (RESEND_TIMES + 2))
 #endif
 
 /* ************************************************************************** */
@@ -131,7 +91,7 @@ namespace LED {
 		}
 
 		static void flash(void) {
-			static bool light = false;
+			static bool light = true;
 			digitalWrite(LED_BUILTIN, light ? HIGH : LOW);
 			light = !light;
 			delay(200);
@@ -184,11 +144,11 @@ namespace COM {
 			Serial.end();
 		}
 
-		template <typename TYPE> inline void print(TYPE x) {}
-		template <typename TYPE> inline void println(TYPE x) {}
-		template <typename TYPE> inline void print(TYPE x, int option) {}
-		template <typename TYPE> inline void println(TYPE x, int option) {}
-		inline static void dump(void *const memory, size_t const size) {}
+		template <typename TYPE> inline void print([[maybe_unused]] TYPE x) {}
+		template <typename TYPE> inline void println([[maybe_unused]] TYPE x) {}
+		template <typename TYPE> inline void print([[maybe_unused]] TYPE x, [[maybe_unused]] int option) {}
+		template <typename TYPE> inline void println([[maybe_unused]] TYPE x, [[maybe_unused]] int option) {}
+		inline static void dump([[maybe_unused]] void *const memory, [[maybe_unused]] size_t const size) {}
 	#endif
 }
 
@@ -201,11 +161,11 @@ namespace OLED {
 		SSD1306.ssd1306_command(SSD1306_DISPLAYOFF);
 	}
 
-	static void turn_on(void) {
-		SSD1306.ssd1306_command(SSD1306_CHARGEPUMP);
-		SSD1306.ssd1306_command(0x14);
-		SSD1306.ssd1306_command(SSD1306_DISPLAYON);
-	}
+	//	static void turn_on(void) {
+	//		SSD1306.ssd1306_command(SSD1306_CHARGEPUMP);
+	//		SSD1306.ssd1306_command(0x14);
+	//		SSD1306.ssd1306_command(SSD1306_DISPLAYON);
+	//	}
 
 	#if defined(ENABLE_OLED_OUTPUT)
 		static class String message;
@@ -217,6 +177,7 @@ namespace OLED {
 			SSD1306.setTextSize(1);
 			SSD1306.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
 			SSD1306.clearDisplay();
+			SSD1306.display();
 			SSD1306.setCursor(0, 0);
 		}
 
@@ -244,8 +205,8 @@ namespace OLED {
 			message = string;
 		}
 
-		inline static void println_message(void) {
-			println(message);
+		inline static void print_message(void) {
+			print(message);
 		}
 
 		inline static void display(void) {
@@ -257,11 +218,11 @@ namespace OLED {
 			turn_off();
 		}
 		inline static void home(void) {}
-		template <typename TYPE> inline void print(TYPE x) {}
-		template <typename TYPE> inline void println(TYPE x) {}
-		template <typename TYPE> inline void println(TYPE x, int option) {}
-		inline static void set_message(class String const &string) {}
-		inline static void println_message(void) {}
+		template <typename TYPE> inline void print([[maybe_unused]] TYPE x) {}
+		template <typename TYPE> inline void println([[maybe_unused]] TYPE x) {}
+		template <typename TYPE> inline void println([[maybe_unused]] TYPE x, [[maybe_unused]] int option) {}
+		inline static void set_message([[maybe_unused]] class String const &string) {}
+		inline static void print_message(void) {}
 		inline static void display(void) {}
 	#endif
 }
@@ -284,6 +245,22 @@ inline void any_println(TYPE x, int option) {
 	OLED::println(x, option);
 }
 
+namespace Debug {
+	template <typename TYPE>
+	inline void print([[maybe_unused]] TYPE x) {
+		#if !defined(NDEBUG)
+			COM::print(x);
+		#endif
+	}
+
+	template <typename TYPE>
+	inline void println([[maybe_unused]] TYPE x) {
+		#if !defined(NDEBUG)
+			COM::println(x);
+		#endif
+	}
+}
+
 struct [[gnu::packed]] FullTime {
 	unsigned short int year;
 	unsigned char month;
@@ -292,7 +269,7 @@ struct [[gnu::packed]] FullTime {
 	unsigned char minute;
 	unsigned char second;
 
-	operator String(void) const;
+	explicit operator String(void) const;
 };
 
 FullTime::operator String(void) const {
@@ -318,10 +295,10 @@ FullTime::operator String(void) const {
 			return true;
 		}
 
-		static void set(struct FullTime const *const fulltime) {
+		static void set(struct FullTime const &fulltime) {
 			class DateTime const datetime(
-				fulltime->year, fulltime->month, fulltime->day,
-				fulltime->hour, fulltime->minute, fulltime->second
+				fulltime.year, fulltime.month, fulltime.day,
+				fulltime.hour, fulltime.minute, fulltime.second
 			);
 			if (clock_available) {
 				internal_clock.adjust(datetime);
@@ -331,20 +308,18 @@ FullTime::operator String(void) const {
 			}
 		}
 
-		static bool ready(void) {
-			return clock_available;
-		}
-
-		static struct FullTime now(void) {
+		static bool now(struct FullTime *const fulltime) {
 			class DateTime const datetime = internal_clock.now();
-			return (struct FullTime){
-				.year = (unsigned short int)datetime.year(),
-				.month = (unsigned char)datetime.month(),
-				.day = (unsigned char)datetime.day(),
-				.hour = (unsigned char)datetime.hour(),
-				.minute = (unsigned char)datetime.minute(),
-				.second = (unsigned char)datetime.second()
-			};
+			if (fulltime != NULL)
+				*fulltime = {
+					.year = (unsigned short int)datetime.year(),
+					.month = (unsigned char)datetime.month(),
+					.day = (unsigned char)datetime.day(),
+					.hour = (unsigned char)datetime.hour(),
+					.minute = (unsigned char)datetime.minute(),
+					.second = (unsigned char)datetime.second()
+				};
+			return clock_available;
 		}
 	}
 #elif ENABLE_CLOCK == CLOCK_PCF85063TP
@@ -359,38 +334,35 @@ FullTime::operator String(void) const {
 			return true;
 		}
 
-		static void set(struct FullTime const *const fulltime) {
+		static void set(struct FullTime const &fulltime) {
 			external_clock.stopClock();
-			external_clock.fillByYMD(fulltime->year, fulltime->month, fulltime->day);
-			external_clock.fillByHMS(fulltime->hour, fulltime->minute, fulltime->second);
+			external_clock.fillByYMD(fulltime.year, fulltime.month, fulltime.day);
+			external_clock.fillByHMS(fulltime.hour, fulltime.minute, fulltime.second);
 			external_clock.setTime();
 			external_clock.startClock();
 		}
 
-		static bool ready(void) {
+		static bool now(struct FullTime *const fulltime) {
+			external_clock.getTime();
+			if (fulltime != NULL)
+				*fulltime = {
+					.year = (unsigned short int)(2000U + external_clock.year),
+					.month = external_clock.month,
+					.day = external_clock.dayOfMonth,
+					.hour = external_clock.hour,
+					.minute = external_clock.minute,
+					.second = external_clock.second
+				};
 			static bool available = false;
-			if (available) return true;
-			external_clock.getTime();
-			available =
-				1 <= external_clock.year       && external_clock.year       <= 99 &&
-				1 <= external_clock.month      && external_clock.month      <= 12 &&
-				1 <= external_clock.dayOfMonth && external_clock.dayOfMonth <= 30 &&
-				0 <= external_clock.hour       && external_clock.hour       <= 23 &&
-				0 <= external_clock.minute     && external_clock.minute     <= 59 &&
-				0 <= external_clock.second     && external_clock.second     <= 59;
+			if (!available)
+				available =
+					1 <= external_clock.year       && external_clock.year       <= 99 &&
+					1 <= external_clock.month      && external_clock.month      <= 12 &&
+					1 <= external_clock.dayOfMonth && external_clock.dayOfMonth <= 30 &&
+					0 <= external_clock.hour       && external_clock.hour       <= 23 &&
+					0 <= external_clock.minute     && external_clock.minute     <= 59 &&
+					0 <= external_clock.second     && external_clock.second     <= 59;
 			return available;
-		}
-
-		static struct FullTime now(void) {
-			external_clock.getTime();
-			return (struct FullTime){
-				.year = (unsigned short int)(2000U + external_clock.year),
-				.month = external_clock.month,
-				.day = external_clock.dayOfMonth,
-				.hour = external_clock.hour,
-				.minute = external_clock.minute,
-				.second = external_clock.second
-			};
 		}
 	}
 #elif ENABLE_CLOCK == CLOCK_DS1307 || ENABLE_CLOCK == CLOCK_DS3231
@@ -417,49 +389,43 @@ FullTime::operator String(void) const {
 			return true;
 		}
 
-		static void set(struct FullTime const *const fulltime) {
+		static void set(struct FullTime const &fulltime) {
 			class DateTime const datetime(
-				fulltime->year, fulltime->month, fulltime->day,
-				fulltime->hour, fulltime->minute, fulltime->second
+				fulltime.year, fulltime.month, fulltime.day,
+				fulltime.hour, fulltime.minute, fulltime.second
 			);
 			external_clock.adjust(datetime);
 		}
 
-		static bool ready(void) {
+		static bool now(struct FullTime *const fulltime) {
 			class DateTime const datetime = external_clock.now();
+			if (fulltime != NULL)
+				*fulltime = {
+					.year = datetime.year(),
+					.month = datetime.month(),
+					.day = datetime.day(),
+					.hour = datetime.hour(),
+					.minute = datetime.minute(),
+					.second = datetime.second()
+				};
 			return datetime.isValid();
-		}
-
-		static struct FullTime now(void) {
-			class DateTime const datetime = external_clock.now();
-			return (struct FullTime){
-				.year = datetime.year(),
-				.month = datetime.month(),
-				.day = datetime.day(),
-				.hour = datetime.hour(),
-				.minute = datetime.minute(),
-				.second = datetime.second()
-			};
 		}
 	}
 #endif
 
-#ifdef ENABLE_UPLOAD
+#if defined(ENABLE_GATEWAY)
 	#include <NTPClient.h>
 
 	namespace NTP {
 		static class WiFiUDP WiFiUDP;
-		static class NTPClient NTP(WiFiUDP, NTP_SERVER);
+		static class NTPClient NTP(WiFiUDP, NTP_SERVER, 0, NTP_INTERVAL);
 
-		inline static bool ready(void) {
-			return NTP.isTimeSet();
-		}
-
-		static struct FullTime now(void) {
+		static bool now(struct FullTime *const fulltime) {
+			if (!NTP.isTimeSet()) return false;
 			time_t const epoch = NTP.getEpochTime();
 			struct tm time;
 			gmtime_r(&epoch, &time);
-			return (struct FullTime){
+			*fulltime = {
 				.year = (unsigned short int)(1900U + time.tm_year),
 				.month = (unsigned char)(time.tm_mon + 1),
 				.day = (unsigned char)time.tm_mday,
@@ -467,25 +433,24 @@ FullTime::operator String(void) const {
 				.minute = (unsigned char)time.tm_min,
 				.second = (unsigned char)time.tm_sec
 			};
+			return true;
 		}
 
-		static void synchronize_NTP(void) {
+		static void synchronize(void) {
 			if (NTP.update()) {
+				time_t const epoch = NTP.getEpochTime();
+				struct tm time;
+				gmtime_r(&epoch, &time);
+				struct FullTime const fulltime = {
+					.year = (unsigned short int)(1900U + time.tm_year),
+					.month = (unsigned char)(time.tm_mon + 1),
+					.day = (unsigned char)time.tm_mday,
+					.hour = (unsigned char)time.tm_hour,
+					.minute = (unsigned char)time.tm_min,
+					.second = (unsigned char)time.tm_sec
+				};
+				RTC::set(fulltime);
 				COM::println("NTP update");
-				#ifdef ENABLE_CLOCK
-					time_t const epoch = NTP.getEpochTime();
-					struct tm time;
-					gmtime_r(&epoch, &time);
-					struct FullTime const fulltime = {
-						.year = (unsigned short int)(1900U + time.tm_year),
-						.month = (unsigned char)(time.tm_mon + 1),
-						.day = (unsigned char)time.tm_mday,
-						.hour = (unsigned char)time.tm_hour,
-						.minute = (unsigned char)time.tm_min,
-						.second = (unsigned char)time.tm_sec
-					};
-					RTC::set(&fulltime);
-				#endif
 			}
 		}
 	}
@@ -495,27 +460,36 @@ FullTime::operator String(void) const {
 
 namespace Sleep {
 	class Unsleep {
+	protected:
+		bool flag;
 	public:
 		Unsleep(void);
-		virtual bool awake(void);
+		virtual bool awake(void) const;
+		void set_awake(bool value);
 	};
 
-	inline Unsleep::Unsleep(void) {}
+	inline Unsleep::Unsleep(void) : flag(false) {}
 
-	bool Unsleep::awake(void) {
-		return false;
+	bool Unsleep::awake(void) const {
+		return flag;
 	}
 
-	#ifdef ENABLE_SLEEP
+	void Unsleep::set_awake(bool const value) {
+		flag = value;
+	}
+
+	#if defined(ENABLE_SLEEP)
 		static Time const MAXIMUM_SLEEP_LENGTH = 24 * 60 * 60 * 1000; /* milliseconds */
 		static bool enabled = false;
 		static Time wake_time = 0;
-		static std::vector<class Unsleep *> waiting_list;
-		static bool waiting_ack = false;
-		static bool waiting_synchronization = false;
+		static std::vector<class Unsleep const *> unsleep_list;
 
 		inline static bool in_range(Time const period) {
 			return 0 < period && period < MAXIMUM_SLEEP_LENGTH;
+		}
+
+		static void add_unsleep(class Unsleep const *const u) {
+			unsleep_list.push_back(u);
 		}
 
 		static void alarm(Time const wake) {
@@ -531,8 +505,8 @@ namespace Sleep {
 		}
 
 		static void sleep(void) {
-			if (!enabled || waiting_ack || waiting_synchronization) return;
-			for (class Unsleep *const u: waiting_list)
+			if (!enabled) return;
+			for (class Unsleep const *const u: unsleep_list)
 				if (u->awake())
 					return;
 			Time const now = millis();
@@ -544,19 +518,10 @@ namespace Sleep {
 			}
 			enabled = false;
 		}
-
-		inline static void wait_ack(bool const value) {
-			waiting_ack = value;
-		}
-
-		inline static void wait_synchronization(bool const value) {
-			waiting_synchronization = value;
-		}
 	#else
-		inline static void alarm(Time const wake) {}
+		static void add_unsleep([[maybe_unused]] class Unsleep const *const u) {}
+		inline static void alarm([[maybe_unused]] Time const wake) {}
 		inline static void sleep(void) {}
-		inline static void wait_ack(bool value) {}
-		inline static void wait_synchronization(bool value) {}
 	#endif
 }
 
@@ -578,9 +543,7 @@ public:
 
 inline Schedule::Schedule(Time const initial_period) :
 	enable(false), head(0), period(initial_period), margin(0)
-{
-	/* do nothing */
-}
+{}
 
 inline bool Schedule::enabled(void) const {
 	return enable;
@@ -787,21 +750,115 @@ bool Data::readln(class Stream *const stream) {
 
 /* ************************************************************************** */
 
-namespace LORA {
-	static bool initialize(void) {
-		SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
-		LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
-		if (LoRa.begin(LORA_BAND) == 1) {
-			any_println("LoRa initialized");
+#if defined(ENABLE_GATEWAY)
+	#include <HTTPClient.h>
+
+	namespace WIFI {
+		static void initialize(void) {
+			WiFi.begin(WIFI_SSID, WIFI_PASS);
+		}
+
+		static class String status_message(signed int const WiFi_status) {
+			switch (WiFi_status) {
+			case WL_NO_SHIELD:
+				return String("WiFi no shield");
+			case WL_IDLE_STATUS:
+				return String("WiFi idle");
+			case WL_NO_SSID_AVAIL:
+				return String("WiFi no SSID");
+			case WL_SCAN_COMPLETED:
+				return String("WiFi scan completed");
+			case WL_CONNECTED:
+				return String("WiFi connected");
+			case WL_CONNECT_FAILED:
+				return String("WiFi connect failed");
+			case WL_CONNECTION_LOST:
+				return String("WiFi connection lost");
+			case WL_DISCONNECTED:
+				return String("WiFi disconnected");
+			default:
+				return String("WiFi Status: ") + String(WiFi_status);
+			}
+		}
+
+		static bool upload(Device const device, SerialNumber const serial, struct Data const *const data) {
+			signed int const WiFi_status = WiFi.status();
+			if (WiFi_status != WL_CONNECTED) {
+				any_print("No WiFi: ");
+				any_println(status_message(WiFi.status()));
+				return false;
+			}
+			class String const time = String(data->time);
+			class HTTPClient HTTP_client;
+			char URL[HTTP_UPLOAD_LENGTH];
+			snprintf(
+				URL, sizeof URL,
+				HTTP_UPLOAD_FORMAT,
+				device, serial, time.c_str()
+				#ifdef ENABLE_BATTERY_GAUGE
+					, data->battery_voltage
+					, data->battery_percentage
+				#endif
+				#ifdef ENABLE_DALLAS
+					, data->dallas_temperature
+				#endif
+				#ifdef ENABLE_BME280
+					, data->bme280_temperature
+					, data->bme280_pressure
+					, data->bme280_humidity
+				#endif
+				#ifdef ENABLE_LTR390
+					, data->ltr390_ultraviolet
+				#endif
+			);
+			COM::print("Upload to ");
+			COM::println(URL);
+			HTTP_client.begin(URL);
+			static char const authorization_type[] = HTTP_AUTHORIZATION_TYPE;
+			static char const authorization_code[] = HTTP_AUTHORIZATION_CODE;
+			if (authorization_type[0] && authorization_code[0]) {
+				HTTP_client.setAuthorizationType(authorization_type);
+				HTTP_client.setAuthorization(authorization_code);
+			}
+			signed int HTTP_status = HTTP_client.GET();
+			any_print("HTTP status: ");
+			any_println(HTTP_status);
+			if (not (HTTP_status >= 200 and HTTP_status < 300)) return false;
 			return true;
-		} else {
-			any_println("LoRa uninitialized");
-			return false;
+		}
+
+		static void loop(void) {
+			static wl_status_t last_WiFi = WL_IDLE_STATUS;
+			wl_status_t this_WiFi = WiFi.status();
+			if (this_WiFi != last_WiFi) {
+				COM::print("WiFi status: ");
+				COM::println(status_message(WiFi.status()));
+				last_WiFi = this_WiFi;
+			}
+			if (this_WiFi == WL_CONNECTED) {
+				NTP::synchronize();
+			}
 		}
 	}
+#else
+	namespace WIFI {
+		inline static void initialize(void) {
+			/* stop WiFi to lower power consumption */
+			WiFi.mode(WIFI_OFF);
+		}
+		inline static void loop(void) {}
+	}
+#endif
 
-	namespace SEND {
+/* ************************************************************************** */
+
+namespace LORA {
+	static Device last_receiver = 0;
+
+	namespace Send {
 		static bool payload(char const *const message, void const *const payload, size_t const size) {
+			Debug::print("DEBUG: LORA::Send::payload ");
+			Debug::println(message);
 			uint8_t nonce[CIPHER_IV_LENGTH];
 			RNG.rand(nonce, sizeof nonce);
 			AuthCipher cipher;
@@ -809,8 +866,8 @@ namespace LORA {
 				COM::print("LoRa ");
 				COM::print(message);
 				COM::println(": unable to set key");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message("Unable to set key");
+				#if defined(ENABLE_OLED_OUTPUT)
+					OLED::set_message("Unable to set key\n");
 				#endif
 				return false;
 			}
@@ -818,8 +875,8 @@ namespace LORA {
 				COM::print("LoRa ");
 				COM::print(message);
 				COM::println(": unable to set nonce");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message("Unable to set nonce");
+				#if defined(ENABLE_OLED_OUTPUT)
+					OLED::set_message("Unable to set nonce\n");
 				#endif
 				return false;
 			}
@@ -833,119 +890,70 @@ namespace LORA {
 			return true;
 		}
 
-		static void ask_time(void) {
+		static void ASKTIME(void) {
 			LoRa.beginPacket();
 			LoRa.write(uint8_t(PACKET_ASKTIME));
-			Device last_receiver;               // TODO: use real receiver ID
-			LoRa.write(uint8_t(last_receiver)); // TODO
+			LoRa.write(uint8_t(last_receiver));
 			Device const device = DEVICE_ID;
-			LORA::SEND::payload("ASKTIME", &device, sizeof device);
+			LORA::Send::payload("ASKTIME", &device, sizeof device);
+			LoRa.endPacket(true);
+		}
+
+		static void SEND(Device const receiver, SerialNumber const serial, Data const *const data) {
+			Device const device = DEVICE_ID;
+			unsigned char payload[2 * sizeof device + sizeof serial + sizeof *data];
+			std::memcpy(payload, &device, sizeof device);
+			std::memcpy(payload + sizeof device, &device, sizeof device);
+			std::memcpy(payload + 2 * sizeof device, &serial, sizeof serial);
+			std::memcpy(payload + 2 * sizeof device + sizeof serial, data, sizeof *data);
+			LoRa.beginPacket();
+			LoRa.write(uint8_t(PACKET_SEND));
+			LoRa.write(uint8_t(receiver));
+			LORA::Send::payload("SEND", payload, sizeof payload);
 			LoRa.endPacket(true);
 		}
 	}
-
-	namespace RECEIVE {
-		static bool payload(char const *const message, void *const payload, size_t const size) {
-			uint8_t nonce[CIPHER_IV_LENGTH];
-			if (LoRa.readBytes(nonce, sizeof nonce) != sizeof nonce) {
-				COM::print("LoRa ");
-				COM::print(message);
-				COM::println(": fail to read cipher nonce");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message(String("LoRa ") + message + ": fail to read cipher nonce");
-				#endif
-				return false;
-			}
-			char ciphertext[size];
-			if (LoRa.readBytes(ciphertext, sizeof ciphertext) != sizeof ciphertext) {
-				COM::print("LoRa ");
-				COM::print(message);
-				COM::println(": fail to read time");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message(String("LoRa ") + message + ": fail to read time");
-				#endif
-				return false;
-			}
-			uint8_t tag[CIPHER_TAG_SIZE];
-			if (LoRa.readBytes(tag, sizeof tag) != sizeof tag) {
-				COM::print("LoRa ");
-				COM::print(message);
-				COM::println(": fail to read cipher tag");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message(String("LoRa ") + message + ": fail to read cipher tag");
-				#endif
-				return false;
-			}
-			AuthCipher cipher;
-			if (!cipher.setKey((uint8_t const *)secret_key, sizeof secret_key)) {
-				COM::print("LoRa ");
-				COM::print(message);
-				COM::println(": fail to set cipher key");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message(String("LoRa ") + message + ": fail to set cipher key");
-				#endif
-				return false;
-			}
-			if (!cipher.setIV(nonce, sizeof nonce)) {
-				COM::print("LoRa ");
-				COM::print(message);
-				COM::println(": fail to set cipher nonce");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message(String("LoRa ") + message + ": fail to set cipher nonce");
-				#endif
-				return false;
-			}
-			cipher.decrypt((uint8_t *)payload, (uint8_t const *)&ciphertext, size);
-			if (!cipher.checkTag(tag, sizeof tag)) {
-				COM::print("LoRa ");
-				COM::print(message);
-				COM::println(": invalid cipher tag");
-				#ifdef ENABLE_OLED_OUTPUT
-					OLED::set_message(String("LoRa ") + message + ": invalid cipher tag");
-				#endif
-				return false;
-			}
-			return true;
-		}
-
-		static void TIME(signed int const packet_size) {
-			/* TODO */
-		}
-
-		static void SEND(signed int const packet_size) {
-			/* TODO */
-		}
-
-		static void ACK(signed int const packet_size) {
-			/* TODO */
-		}
-
-		static void packet(void) {
-			signed int const packet_size = LoRa.parsePacket();
-			if (packet_size < 1) return;
-			PacketType packet_type;
-			if (LoRa.readBytes(&packet_type, sizeof packet_type) != sizeof packet_type) return;
-			switch (packet_type) {
-			case PACKET_TIME:
-				TIME(packet_size);
-				break;
-			case PACKET_SEND:
-				SEND(packet_size);
-				break;
-			case PACKET_ACK:
-				ACK(packet_size);
-				break;
-			default:
-				COM::print("LoRa: incorrect packet type: ");
-				COM::println(packet_type);
-			}
-
-			/* add entropy to RNG */
-			unsigned long int const microseconds = micros();
-			RNG.stir((uint8_t const *)&microseconds, sizeof microseconds, 8);
-		}
-	}
 }
+
+/* ************************************************************************** */
+
+#if defined(ENABLE_GATEWAY)
+	static class Synchronize : public Schedule {
+	public:
+		Synchronize(void);
+		virtual void run(Time now);
+		static void initialize(void);
+	} synchronize_schedule;
+
+	inline Synchronize::Synchronize(void) : Schedule(SYNCHONIZE_INTERVAL) {}
+
+	void Synchronize::run(Time const now) {
+		Schedule::run(now);
+
+		struct FullTime fulltime;
+		if (!NTP::now(&fulltime)) return;
+		RTC::set(fulltime);
+
+		LoRa.beginPacket();
+		LoRa.write(PacketType(PACKET_TIME));
+		LoRa.write(Device(0));
+		LORA::Send::payload("TIME", &fulltime, sizeof fulltime);
+		LoRa.endPacket(true);
+
+		OLED::home();
+		any_println("Synchronize: ");
+		any_println(String(fulltime));
+		OLED::display();
+	}
+
+	void Synchronize::initialize(void) {
+		Schedules::add(&synchronize_schedule);
+	}
+#else
+	namespace Synchronize {
+		inline static void initialize(void) {}
+	}
+#endif
 
 /* ************************************************************************** */
 
@@ -953,6 +961,7 @@ namespace LORA {
 	class AskTime : public Schedule {
 	protected:
 		bool wait_response;
+		class Sleep::Unsleep unsleep;
 	public:
 		AskTime(void);
 		void start(Time const now);
@@ -962,7 +971,7 @@ namespace LORA {
 	} ask_time_schedule;
 
 	inline AskTime::AskTime(void) :
-		Schedule(SYNCHONIZE_INTERVAL), wait_response(false)
+		Schedule(SYNCHONIZE_INTERVAL), wait_response(false), unsleep()
 	{}
 
 	void AskTime::start(Time const now) {
@@ -974,8 +983,8 @@ namespace LORA {
 		if (!wait_response) {
 			wait_response = true;
 			period = SYNCHONIZE_MARGIN;
-			Sleep::wait_synchronization(true);
-			LORA::SEND::ask_time();
+			unsleep.set_awake(true);
+			LORA::Send::ASKTIME();
 		} else {
 			reset();
 		}
@@ -984,11 +993,12 @@ namespace LORA {
 	void AskTime::reset(void) {
 		wait_response = false;
 		period = SYNCHONIZE_INTERVAL;
-		Sleep::wait_synchronization(false);
+		unsleep.set_awake(false);
 	}
 
 	void AskTime::initialize(void) {
 		Schedules::add(&ask_time_schedule);
+		Sleep::add_unsleep(&ask_time_schedule.unsleep);
 	}
 #else
 	namespace AskTime {
@@ -999,8 +1009,118 @@ namespace LORA {
 /* ************************************************************************** */
 
 #if defined(ENABLE_MEASURE)
+	static SerialNumber current_serial;
+
+	#if defined(ENABLE_OLED_OUTPUT)
+		static void draw_received(void) {
+			OLED::SSD1306.drawRect(125, 61, 3, 3, SSD1306_WHITE);
+			OLED::SSD1306.display();
+		}
+	#else
+		inline static void draw_received(void) {}
+	#endif
+
+	class Sender : public Schedule {
+	protected:
+		unsigned int retry;
+		Device receiver;
+		SerialNumber serial;
+		struct Data data;
+		Device next_router(void);
+		class Sleep::Unsleep unsleep;
+	public:
+		Sender(void);
+		void start(Time const now);
+		virtual void run(Time now) override;
+		void start_send(struct Data const *const data);
+		bool stop_ack(SerialNumber const serial);
+		static void initialize(void);
+	} sender_schedule;
+
+	Sender::Sender(void) : Schedule(SEND_INTERVAL), unsleep() {}
+
+	Device Sender::next_router(void) {
+		/* Return next router or DEVICE_ID if no more routers */
+		size_t const N = sizeof router_topology / sizeof *router_topology;
+		size_t i = 0;
+		for (;;) {
+			if (i >= N) return DEVICE_ID;
+			if (router_topology[i][1] == DEVICE_ID && router_topology[i][0] == receiver) break;
+			++i;
+		}
+		size_t j = i + 1;
+		for (;;) {
+			if (j >= N) j = 0;
+			if (router_topology[j][1] == DEVICE_ID) {
+				Device const device = router_topology[j][0];
+				if (device == LORA::last_receiver) return DEVICE_ID;
+				return device;
+			}
+			++j;
+		}
+	}
+
+	void Sender::start(Time const now) {
+		if (!RESEND_TIMES) return;
+		Schedule::start(now, rand_int<uint8_t>());
+	}
+
+	void Sender::run(Time const now) {
+		Schedule::run(now);
+		if (retry) {
+			--retry;
+			LORA::Send::SEND(receiver, serial, &data);
+		} else {
+			Device const next = next_router();
+			if (next == DEVICE_ID) {
+				stop();
+			} else {
+				receiver = next;
+				retry = RESEND_TIMES;
+			}
+		}
+	}
+
+	void Sender::start_send(struct Data const *const data) {
+		retry = RESEND_TIMES;
+		receiver = LORA::last_receiver;
+		serial = current_serial;
+		++current_serial;
+		this->data = *data;
+		unsleep.set_awake(true);
+		Time const now = millis();
+		start(now);
+		run(now);
+	}
+
+	bool Sender::stop_ack(SerialNumber const ack_serial) {
+		if (ack_serial == serial) {
+			unsleep.set_awake(false);
+			LORA::last_receiver = receiver;
+			stop();
+			return true;
+		} else {
+			COM::println("LoRa ACK: serial number unmatched");
+			return false;
+		}
+	}
+
+	void Sender::initialize(void) {
+		Schedules::add(&sender_schedule);
+		Sleep::add_unsleep(&sender_schedule.unsleep);
+	}
+
 	void send_data(struct Data const *const data) {
-		/* TODO */
+		#if defined(ENABLE_GATEWAY)
+			if (WIFI::upload(DEVICE_ID, current_serial, data)) {
+				draw_received();
+			} else {
+				COM::print("HTTP: unable to send data: time=");
+				COM::println(String(data->time));
+			}
+		#else
+			sender_schedule.start_send(data);
+		#endif
 	}
 
 	#if defined(ENABLE_SD_CARD)
@@ -1070,7 +1190,7 @@ namespace LORA {
 			} push_schedule;
 
 			inline Push::Push(void) :
-				Schedule(UPLOAD_INTERVAL), current_position(0), next_position(0)
+				Schedule(SEND_INTERVAL), current_position(0), next_position(0)
 			{}
 
 			void Push::run(Time const now) {
@@ -1161,22 +1281,43 @@ namespace LORA {
 		}
 	#endif
 
-/* ************************************************************************** */
+	#if defined(ENABLE_BATTERY_GAUGE)
+		#if ENABLE_BATTERY_GAUGE == BATTERY_GAUGE_DFROBOT
+			#include <DFRobot_MAX17043.h>
 
-	static SerialNumber serial_current;
+			static class DFRobot_MAX17043 battery;
+		#elif ENABLE_BATTERY_GAUGE == BATTERY_GAUGE_LC709203F
+			#include <Adafruit_LC709203F.h>
 
-	class Sender: public Schedule {
-	public:
-		Sender(void);
-	};
+			static class Adafruit_LC709203F battery;
+		#endif
+	#endif
 
-	Sender::Sender(void) : Schedule(UPLOAD_INTERVAL) {}
+	#ifdef ENABLE_DALLAS
+		#include <OneWire.h>
+		#include <DallasTemperature.h>
+
+		static class OneWire onewire_thermometer(DALLAS_PIN);
+		static class DallasTemperature dallas(&onewire_thermometer);
+	#endif
+
+	#ifdef ENABLE_BME280
+		#include <Adafruit_Sensor.h>
+		#include <Adafruit_BME280.h>
+
+		static class Adafruit_BME280 BME;
+	#endif
+
+	#ifdef ENABLE_LTR390
+		#include <Adafruit_LTR390.h>
+		static class Adafruit_LTR390 LTR;
+	#endif
 
 	static class Measure : public Schedule {
 	public:
 		Measure(void);
 		virtual void run(Time now) override;
-		void measured(struct Data const &data);
+		void measured(Time now, struct Data const *const data);
 		static bool initialize(void);
 	} measure_schedule;
 
@@ -1184,14 +1325,14 @@ namespace LORA {
 
 	void Measure::run(Time const now) {
 		Schedule::run(now);
-		if (!RTC::ready()) return;
 
-		OLED::home();
 		struct Data data;
-		data.time = RTC::now();
+		if (!RTC::now(&data.time)) return;
+		OLED::home();
 		COM::print("Time: ");
 		any_println(String(data.time));
-		#ifdef ENABLE_BATTERY_GAUGE
+
+		#if defined(ENABLE_BATTERY_GAUGE)
 			#if ENABLE_BATTERY_GAUGE == BATTERY_GAUGE_DFROBOT
 				data.battery_voltage = battery.readVoltage() / 1000;
 				data.battery_percentage = battery.readPercentage();
@@ -1205,12 +1346,14 @@ namespace LORA {
 			any_print(data.battery_percentage);
 			any_println("%");
 		#endif
-		#ifdef ENABLE_DALLAS
+
+		#if defined(ENABLE_DALLAS)
 			data.dallas_temperature = dallas.getTempCByIndex(0);
 			any_print("Dallas temp.: ");
 			any_println(data.dallas_temperature);
 		#endif
-		#ifdef ENABLE_BME280
+
+		#if defined(ENABLE_BME280)
 			data.bme280_temperature = BME.readTemperature();
 			data.bme280_pressure = BME.readPressure();
 			data.bme280_humidity = BME.readHumidity();
@@ -1221,36 +1364,41 @@ namespace LORA {
 			any_print("BME humidity: ");
 			any_println(data.bme280_humidity);
 		#endif
-		#ifdef ENABLE_LTR390
+
+		#if defined(ENABLE_LTR390)
 			data.ltr390_ultraviolet = LTR.readUVS();
 			any_print("LTR UV: ");
 			any_println(data.ltr390_ultraviolet);
 		#endif
 
-		#ifdef ENABLE_OLED_OUTPUT
-			OLED::println_message();
+		#if defined(ENABLE_OLED_OUTPUT)
+			OLED::print_message();
 			OLED::set_message("");
 		#endif
-		measured(data);
+
+		measured(now, &data);
 		OLED::display();
 	}
 
-	void Measure::measured(struct Data const &data) {
-		#ifdef ENABLE_SD_CARD
-			SD_CARD::append(&data);
-		#else
-			send_data(&data);
-		#endif
-	}
+	#if defined(ENABLE_SD_CARD)
+		void Measure::measured(Time const now, struct Data const *const data) {
+			SD_CARD::append(data);
+			SD_CARD::push_schedule.start(now);
+		}
+	#else
+		void Measure::measured([[maybe_unused]] Time const now, struct Data const *const data) {
+			send_data(data);
+		}
+	#endif
 
 	bool Measure::initialize(void) {
 		/* Initial battery gauge */
-		#ifdef ENABLE_BATTERY_GAUGE
+		#if defined(ENABLE_BATTERY_GAUGE)
 			battery.begin();
 		#endif
 
 		/* Initialize Dallas thermometer */
-		#ifdef ENABLE_DALLAS
+		#if defined(ENABLE_DALLAS)
 			dallas.begin();
 			DeviceAddress thermometer_address;
 			if (dallas.getAddress(thermometer_address, 0)) {
@@ -1262,7 +1410,7 @@ namespace LORA {
 		#endif
 
 		/* Initialize BME280 sensor */
-		#ifdef ENABLE_BME280
+		#if defined(ENABLE_BME280)
 			if (BME.begin()) {
 				any_println("BME280 sensor found");
 			} else {
@@ -1272,7 +1420,7 @@ namespace LORA {
 		#endif
 
 		/* Initial LTR390 sensor */
-		#ifdef ENABLE_LTR390
+		#if defined(ENABLE_LTR390)
 			if (LTR.begin()) {
 				LTR.setMode(LTR390_MODE_UVS);
 				any_println("LTR390 sensor found");
@@ -1281,6 +1429,10 @@ namespace LORA {
 				return false;
 			}
 		#endif
+
+		/* Schedule to measure */
+		Schedules::add(&measure_schedule);
+		measure_schedule.start(0);
 
 		return true;
 	}
@@ -1295,12 +1447,418 @@ namespace LORA {
 #endif
 
 #if !defined(ENABLE_MEASURE)
+	namespace Sender {
+		inline static void initialize(void) {
+		}
+	}
+
 	namespace Measure {
 		inline static bool initialize(void) {
 			return true;
 		}
 	}
 #endif
+
+/* ************************************************************************** */
+
+namespace LORA {
+	namespace Receive {
+		static bool payload(char const *const message, void *const content, size_t const size) {
+			uint8_t nonce[CIPHER_IV_LENGTH];
+			if (LoRa.readBytes(nonce, sizeof nonce) != sizeof nonce) {
+				COM::print("LoRa ");
+				COM::print(message);
+				COM::println(": fail to read cipher nonce");
+				#ifdef ENABLE_OLED_OUTPUT
+					OLED::set_message(String("LoRa ") + message + ": fail to read cipher nonce\n");
+				#endif
+				return false;
+			}
+			char ciphertext[size];
+			if (LoRa.readBytes(ciphertext, sizeof ciphertext) != sizeof ciphertext) {
+				COM::print("LoRa ");
+				COM::print(message);
+				COM::println(": fail to read time");
+				#ifdef ENABLE_OLED_OUTPUT
+					OLED::set_message(String("LoRa ") + message + ": fail to read time\n");
+				#endif
+				return false;
+			}
+			uint8_t tag[CIPHER_TAG_SIZE];
+			if (LoRa.readBytes(tag, sizeof tag) != sizeof tag) {
+				COM::print("LoRa ");
+				COM::print(message);
+				COM::println(": fail to read cipher tag");
+				#ifdef ENABLE_OLED_OUTPUT
+					OLED::set_message(String("LoRa ") + message + ": fail to read cipher tag\n");
+				#endif
+				return false;
+			}
+			AuthCipher cipher;
+			if (!cipher.setKey((uint8_t const *)secret_key, sizeof secret_key)) {
+				COM::print("LoRa ");
+				COM::print(message);
+				COM::println(": fail to set cipher key");
+				#ifdef ENABLE_OLED_OUTPUT
+					OLED::set_message(String("LoRa ") + message + ": fail to set cipher key\n");
+				#endif
+				return false;
+			}
+			if (!cipher.setIV(nonce, sizeof nonce)) {
+				COM::print("LoRa ");
+				COM::print(message);
+				COM::println(": fail to set cipher nonce");
+				#ifdef ENABLE_OLED_OUTPUT
+					OLED::set_message(String("LoRa ") + message + ": fail to set cipher nonce\n");
+				#endif
+				return false;
+			}
+			cipher.decrypt((uint8_t *)content, (uint8_t const *)&ciphertext, size);
+			if (!cipher.checkTag(tag, sizeof tag)) {
+				COM::print("LoRa ");
+				COM::print(message);
+				COM::println(": invalid cipher tag");
+				#ifdef ENABLE_OLED_OUTPUT
+					OLED::set_message(String("LoRa ") + message + ": invalid cipher tag\n");
+				#endif
+				return false;
+			}
+			return true;
+		}
+
+		#if defined(ENABLE_GATEWAY)
+			static SerialNumber last_serial[NUMBER_OF_DEVICES];
+
+			inline static void TIME([[maybe_unused]] signed int const packet_size) {}
+
+			static void ASKTIME(signed int const packet_size) {
+				size_t const overhead_size =
+					sizeof (PacketType) /* packet type */
+					+ sizeof (Device)   /* receiver */
+					+ CIPHER_IV_LENGTH  /* nonce */
+					+ CIPHER_TAG_SIZE;  /* cipher tag */
+				size_t const expected_packet_size =
+					overhead_size
+					+ sizeof (Device);  /* terminal */
+				if (packet_size != expected_packet_size) {
+					COM::print("LoRa ASKTIME: incorrect packet size: ");
+					COM::println(packet_size);
+					return;
+				}
+
+				Device receiver;
+				if (LoRa.readBytes(&receiver, sizeof receiver) != sizeof receiver) return;
+				if (receiver != (Device)0) return;
+
+				Device device;
+				if (!payload("ASKTIME", &device, sizeof device)) return;
+				if (!(device > 0 && device <= NUMBER_OF_DEVICES)) {
+					COM::print("LoRa ASKTIME: incorrect device: ");
+					COM::println(device);
+					return;
+				}
+
+				synchronize_schedule.run(millis());
+			}
+
+			static void SEND(signed int const packet_size) {
+				size_t const overhead_size =
+					sizeof (PacketType)     /* packet type */
+					+ sizeof (Device)       /* receiver */
+					+ CIPHER_IV_LENGTH      /* nonce */
+					+ CIPHER_TAG_SIZE;      /* cipher tag */
+				size_t const minimal_packet_size =
+					overhead_size
+					+ sizeof (Device)       /* terminal */
+					+ sizeof (Device)       /* router list length >= 1 */
+					+ sizeof (SerialNumber) /* serial code */
+					+ sizeof (struct Data); /* data */
+				if (!(packet_size >= minimal_packet_size)) {
+					COM::print("LoRa SEND: incorrect packet size: ");
+					COM::println(packet_size);
+					return;
+				}
+				Device receiver;
+				if (LoRa.readBytes(&receiver, sizeof receiver) != sizeof receiver) return;
+				if (receiver != (Device)0) return;
+				size_t const payload_size = packet_size - overhead_size;
+				unsigned char content[payload_size];
+				if (!LORA::Receive::payload("SEND", &content, sizeof content)) return;
+
+				Device device;
+				std::memcpy(&device, content, sizeof device);
+				if (!(device > 0 && device <= NUMBER_OF_DEVICES)) {
+					COM::print("LoRa SEND: incorrect device: ");
+					COM::println(device);
+					return;
+				}
+
+				size_t routers_length = sizeof (Device);
+				for (;;) {
+					if (routers_length >= payload_size) {
+						COM::println("LoRa SEND: incorrect router list");
+						return;
+					}
+					Device router;
+					std::memcpy(&router, content + routers_length, sizeof router);
+					if (router == device) break;
+					routers_length += sizeof router;
+				}
+				size_t const excat_packet_size =
+					minimal_packet_size
+					+ routers_length * sizeof (Device)
+					- sizeof (Device);
+				if (packet_size != excat_packet_size) {
+					COM::print("LoRa SEND: incorrect packet size or router list: ");
+					COM::print(packet_size);
+					COM::print(" / ");
+					COM::println(routers_length);
+					return;
+				}
+
+				SerialNumber serial;
+				std::memcpy(&serial, content + sizeof (Device) + routers_length, sizeof serial);
+				if (
+					!(serial >= LORA::Receive::last_serial[device])
+					&& !(LORA::Receive::last_serial[device] & ~(~(SerialNumber)0 >> 1))
+				)
+					COM::println("LoRa SEND: serial number out of order");
+
+				size_t const router_list_size =
+					sizeof (Device) * (1 + routers_length)
+					+ sizeof (SerialNumber);
+				struct Data data;
+				std::memcpy(&data, content + router_list_size, sizeof data);
+
+				LORA::Receive::last_serial[device] = serial;
+				#ifdef ENABLE_OLED_OUTPUT
+					OLED::home();
+					OLED::print("Device ");
+					OLED::print(device);
+					OLED::print(" Serial ");
+					OLED::println(serial);
+					OLED::println(String(data.time));
+					#ifdef ENABLE_BATTERY_GAUGE
+						OLED::print("Battery:");
+						OLED::print(data.battery_voltage);
+						OLED::print("V ");
+						OLED::print(data.battery_percentage);
+						OLED::println('%');
+					#endif
+					#ifdef ENABLE_DALLAS
+						OLED::print("Dallas temp.: ");
+						OLED::println(data.dallas_temperature);
+					#endif
+					#ifdef ENABLE_BME280
+						OLED::print("BME temp.: ");
+						OLED::println(data.bme280_temperature);
+						OLED::print("BME pressure: ");
+						OLED::println(data.bme280_pressure, 0);
+						OLED::print("BME humidity: ");
+						OLED::println(data.bme280_humidity);
+					#endif
+					#ifdef ENABLE_LTR390
+						OLED::print("LTR UV: ");
+						OLED::println(data.ltr390_ultraviolet);
+					#endif
+					OLED::display();
+				#endif
+
+				if (!WIFI::upload(device, serial, &data)) {
+					OLED::display();
+					return;
+				}
+
+				Device router;
+				std::memcpy(&router, content + sizeof device, sizeof router);
+
+				LoRa.beginPacket();
+				LoRa.write(PacketType(PACKET_ACK));
+				LoRa.write(router);
+				LORA::Send::payload("ACK", content, router_list_size);
+				LoRa.endPacket(true);
+			}
+
+			static void ACK([[maybe_unused]] signed int const packet_size) {}
+		#endif
+
+		#if !defined(ENABLE_GATEWAY)
+			static void TIME(signed int const packet_size) {
+				signed int const excat_packet_size =
+					sizeof (PacketType)        /* packet type */
+					+ sizeof (Device)          /* sender */
+					+ CIPHER_IV_LENGTH         /* nonce */
+					+ sizeof (struct FullTime) /* time */
+					+ CIPHER_TAG_SIZE;         /* cipher tag */
+				if (packet_size != excat_packet_size) return;
+				Device sender;
+				if (LoRa.readBytes(&sender, sizeof sender) != sizeof sender) return;
+				struct FullTime time;
+				if (!LORA::Receive::payload("TIME", &time, sizeof time)) return;
+
+				if (sender != Device(0)) { /* always accept TIME packet from gateway */
+					size_t i = 0;
+					for (;;) {
+						if (i >= sizeof router_topology / sizeof *router_topology) return;
+						if (router_topology[i][0] == DEVICE_ID && router_topology[i][1] == sender) break;
+						++i;
+					}
+				}
+
+				#ifdef ENABLE_SLEEP
+					ask_time_schedule.reset();
+				#endif
+				RTC::set(time);
+
+				LoRa.beginPacket();
+				LoRa.write(PacketType(PACKET_TIME));
+				LoRa.write(Device(DEVICE_ID));
+				LORA::Send::payload("TIME+", &time, sizeof time);
+				LoRa.endPacket(true);
+			}
+
+			inline static void ASKTIME([[maybe_unused]] signed int const packet_size) {}
+
+			static void SEND(signed int const packet_size) {
+				size_t const overhead_size =
+					sizeof (PacketType)     /* packet type */
+					+ sizeof (Device)       /* receiver */
+					+ CIPHER_IV_LENGTH      /* nonce */
+					+ CIPHER_TAG_SIZE;      /* cipher tag */
+				size_t const minimal_packet_size =
+					sizeof (Device)         /* terminal */
+					+ sizeof (Device)       /* router list length >= 1 */
+					+ sizeof (SerialNumber) /* serial code */
+					+ sizeof (struct Data); /* data */
+				if (!(packet_size >= minimal_packet_size)) {
+					COM::print("LoRa SEND: incorrect packet size: ");
+					COM::println(packet_size);
+					return;
+				}
+				Device receiver;
+				if (LoRa.readBytes(&receiver, sizeof receiver) != sizeof receiver) return;
+				if (receiver != Device(DEVICE_ID)) return;
+				unsigned char content[sizeof (Device) + packet_size - overhead_size];
+				if (!LORA::Receive::payload("SEND", content + 1, sizeof content - 1)) return;
+
+				std::memcpy(content, content + sizeof (Device), sizeof (Device));
+				std::memcpy(content + sizeof (Device), &receiver, sizeof (Device));
+				LoRa.beginPacket();
+				LoRa.write(PacketType(PACKET_SEND));
+				LoRa.write(last_receiver);
+				LORA::Send::payload("SEND+", content, sizeof content);
+				LoRa.endPacket(true);
+			}
+
+			static void ACK(signed int const packet_size) {
+				size_t const overhead_size =
+					sizeof (PacketType)      /* packet type */
+					+ sizeof (Device)        /* receiver */
+					+ CIPHER_IV_LENGTH       /* nonce */
+					+ CIPHER_TAG_SIZE;       /* cipher tag */
+				size_t const minimal_packet_size =
+					overhead_size +
+					+ sizeof (Device)        /* terminal */
+					+ sizeof (Device)        /* router list length >= 1 */
+					+ sizeof (SerialNumber); /* serial code */
+				if (!(packet_size >= minimal_packet_size)) {
+					COM::print("LoRa ACK: incorrect packet size: ");
+					COM::println(packet_size);
+					return;
+				}
+				Device receiver;
+				if (LoRa.readBytes(&receiver, sizeof receiver) != sizeof receiver) return;
+				if (Device(DEVICE_ID) != receiver) return;
+				unsigned char content[packet_size - overhead_size];
+				if (!payload("ACK", content, sizeof content)) return;
+
+				Device terminal, router0, router1;
+				std::memcpy(&terminal, content, sizeof terminal);
+				std::memcpy(&router0, content + sizeof terminal, sizeof router0);
+				std::memcpy(&router1, content + sizeof terminal + sizeof router0, sizeof router1);
+				if (Device(DEVICE_ID) == terminal) {
+					if (Device(DEVICE_ID) != router0) {
+						COM::print("LoRa ACK: dirty router list");
+						return;
+					}
+
+					SerialNumber serial;
+					std::memcpy(&serial, content + 2 * sizeof (Device), sizeof serial);
+					if (!sender_schedule.stop_ack(serial)) return;
+
+					#ifdef ENABLE_SD_CARD
+						SD_CARD::push_schedule.ack();
+					#endif
+
+					draw_received();
+				} else {
+					std::memcpy(content + sizeof terminal, &terminal, sizeof terminal);
+					LoRa.beginPacket();
+					LoRa.write(PacketType(PACKET_ACK));
+					LoRa.write(Device(router1));
+					LORA::Send::payload("ACK+", content + sizeof terminal, sizeof content - sizeof terminal);
+					LoRa.endPacket(true);
+				}
+			}
+		#endif
+
+		static void packet(void) {
+			signed int const packet_size = LoRa.parsePacket();
+			if (packet_size < 1) return;
+			PacketType packet_type;
+			if (LoRa.readBytes(&packet_type, sizeof packet_type) != sizeof packet_type) return;
+			switch (packet_type) {
+			case PACKET_TIME:
+				#if !defined(NDEBUG)
+					Debug::println("DEBUG: LoRa::received::TIME");
+				#endif
+				TIME(packet_size);
+				break;
+			case PACKET_ASKTIME:
+				#if !defined(NDEBUG)
+					Debug::println("DEBUG: LoRa::received::ASKTIME");
+				#endif
+				ASKTIME(packet_size);
+				break;
+			case PACKET_SEND:
+				#if !defined(NDEBUG)
+					Debug::println("DEBUG: LoRa::received::SEND");
+				#endif
+				SEND(packet_size);
+				break;
+			case PACKET_ACK:
+				#if !defined(NDEBUG)
+					Debug::println("DEBUG: LoRa::received::ACK");
+				#endif
+				ACK(packet_size);
+				break;
+			default:
+				COM::print("LoRa: incorrect packet type: ");
+				COM::println(packet_type);
+			}
+
+			/* add entropy to RNG */
+			unsigned long int const microseconds = micros();
+			RNG.stir((uint8_t const *)&microseconds, sizeof microseconds, 8);
+		}
+	}
+
+	static bool initialize(void) {
+		SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
+		LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
+		if (LoRa.begin(LORA_BAND) == 1) {
+			any_println("LoRa initialized");
+			return true;
+		} else {
+			any_println("LoRa uninitialized");
+			return false;
+		}
+		#if defined(ENABLE_GATEWAY)
+			for (size_t i = 0; i < NUMBER_OF_DEVICES; ++i)
+				LORA::Receive::last_serial[i] = 0;
+		#endif
+	}
+}
 
 /* ************************************************************************** */
 
@@ -1312,14 +1870,30 @@ void setup(void) {
 	COM::initialize();
 	OLED::initialize();
 
-	if (!setup_error)
-		setup_error = !Measure::initialize();
-	if (!setup_error)
-		setup_error = !SD_CARD::initialize();
-	if (!setup_error)
-		setup_error = !LORA::initialize();
+	#if defined(CPU_FREQUENCY)
+		setCpuFrequencyMhz(CPU_FREQUENCY);
+	#endif
+
+	setup_error = !RTC::initialize();
+	if (setup_error) return;
+
+	setup_error = !SD_CARD::initialize();
+	if (setup_error) return;
+
+	WIFI::initialize();
+
+	setup_error = !LORA::initialize();
+	if (setup_error) return;
+
+	Synchronize::initialize();
 	AskTime::initialize();
-	Measure::initialize();
+
+	setup_error = !Measure::initialize();
+	if (setup_error) return;
+
+	Sender::initialize();
+
+	OLED::display();
 }
 
 void loop(void) {
@@ -1327,9 +1901,10 @@ void loop(void) {
 		LED::flash();
 		return;
 	}
-	RNG.loop();
-	LORA::RECEIVE::packet();
+	LORA::Receive::packet();
+	WIFI::loop();
 	Schedules::tick();
+	RNG.loop();
 }
 
 /* ************************************************************************** */
