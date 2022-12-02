@@ -246,6 +246,7 @@ inline void any_println(TYPE x, int option) {
 
 namespace Debug {
 	template <typename TYPE>
+	[[maybe_unused]]
 	inline void print([[maybe_unused]] TYPE x) {
 		#if !defined(NDEBUG)
 			COM::print(x);
@@ -253,9 +254,17 @@ namespace Debug {
 	}
 
 	template <typename TYPE>
+	[[maybe_unused]]
 	inline void println([[maybe_unused]] TYPE x) {
 		#if !defined(NDEBUG)
 			COM::println(x);
+		#endif
+	}
+
+	[[maybe_unused]]
+	inline static void flush(void) {
+		#if !defined(NDEBUG) && defined(ENABLE_COM_OUTPUT)
+			Serial.flush();
 		#endif
 	}
 }
@@ -494,8 +503,8 @@ namespace Sleep {
 		static void alarm(Time const wake) {
 			if (enabled) {
 				Time const now = millis();
-				Time const period_0 = wake_time - now;
-				Time const period_1 = wake - now;
+				Time const period_0 = wake_time - now + SLEEP_MARGIN;
+				Time const period_1 = wake - now + SLEEP_MARGIN;
 				if (!in_range(period_0)) return;
 				if (!in_range(period_1) || period_0 <= period_1) return;
 			}
@@ -514,9 +523,7 @@ namespace Sleep {
 				Debug::print("DEBUG: sleep ");
 				Debug::print(milliseconds);
 				Debug::println("ms");
-				#if !defined(NDEBUG) && defined(ENABLE_COM_OUTPUT)
-					Serial.flush();
-				#endif
+				Debug::flush();
 				LoRa.sleep();
 				esp_sleep_enable_timer_wakeup(milliseconds * 1000);
 				esp_light_sleep_start();
