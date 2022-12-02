@@ -16,7 +16,6 @@
 #define SYNCHONIZE_MARGIN 1234UL /* milliseconds */
 #define CLEANLOG_INTERVAL 86400000UL /* milliseconds */
 #define SLEEP_MARGIN 1000 /* milliseconds */
-#define ROUTER_TOPOLOGY {}
 
 /* Hardware Parameters */
 #define OLED_WIDTH 128
@@ -512,8 +511,14 @@ namespace Sleep {
 			Time const now = millis();
 			Time const milliseconds = wake_time - now - SLEEP_MARGIN;
 			if (milliseconds < MAXIMUM_SLEEP_LENGTH) {
+				Debug::print("DEBUG: sleep ");
+				Debug::print(milliseconds);
+				Debug::println("ms");
+				#if !defined(NDEBUG) && defined(ENABLE_COM_OUTPUT)
+					Serial.flush();
+				#endif
 				LoRa.sleep();
-				esp_sleep_enable_timer_wakeup(1000 * milliseconds);
+				esp_sleep_enable_timer_wakeup(milliseconds * 1000);
 				esp_light_sleep_start();
 			}
 			enabled = false;
@@ -928,6 +933,8 @@ namespace LORA {
 	inline Synchronize::Synchronize(void) : Schedule(SYNCHONIZE_INTERVAL) {}
 
 	void Synchronize::run(Time const now) {
+		Debug::print("Synchronize::run ");
+		Debug::println(now);
 		Schedule::run(now);
 
 		struct FullTime fulltime;
@@ -975,10 +982,16 @@ namespace LORA {
 	{}
 
 	void AskTime::start(Time const now) {
+		Debug::print("AskTime::start ");
+		Debug::print(now);
+		Debug::print(", period = ");
+		Debug::println(period);
 		Schedule::start(now - period, rand_int<uint8_t>());
 	}
 
 	void AskTime::run(Time const now) {
+		Debug::print("Asktime::run ");
+		Debug::println(now);
 		Schedule::run(now);
 		if (!wait_response) {
 			wait_response = true;
@@ -997,8 +1010,10 @@ namespace LORA {
 	}
 
 	void AskTime::initialize(void) {
+		Debug::println("AskTime::initialize");
 		Schedules::add(&ask_time_schedule);
 		Sleep::add_unsleep(&ask_time_schedule.unsleep);
+		ask_time_schedule.start(0);
 	}
 #else
 	namespace AskTime {
@@ -1066,6 +1081,8 @@ namespace LORA {
 	}
 
 	void Sender::run(Time const now) {
+		Debug::print("Sender::run ");
+		Debug::println(now);
 		Schedule::run(now);
 		if (retry) {
 			--retry;
@@ -1112,7 +1129,7 @@ namespace LORA {
 
 	void send_data(struct Data const *const data) {
 		#if defined(ENABLE_GATEWAY)
-			if (WIFI::upload(DEVICE_ID, current_serial, data)) {
+			if (WIFI::upload(DEVICE_ID, current_serial++, data)) {
 				draw_received();
 			} else {
 				COM::print("HTTP: unable to send data: time=");
@@ -1194,6 +1211,8 @@ namespace LORA {
 			{}
 
 			void Push::run(Time const now) {
+				Debug::print("Push::run ");
+				Debug::println(now);
 				Schedule::run(now);
 				class File data_file = SD.open(DATA_FILE_PATH, "r");
 				if (!data_file) {
@@ -1272,9 +1291,13 @@ namespace LORA {
 					OLED::display();
 					cleanup();
 					any_println("Data file cleaned");
+					OLED::display();
+					Schedules::add(&push_schedule);
+					Schedules::add(&cleanlog_schedule);
 					return true;
 				} else {
 					any_println("SD card uninitialized");
+					OLED::display();
 					return false;
 				}
 			}
@@ -1324,11 +1347,15 @@ namespace LORA {
 	inline Measure::Measure(void) : Schedule(MEASURE_INTERVAL) {}
 
 	void Measure::run(Time const now) {
+		Debug::print("Measure::run ");
+		Debug::println(now);
 		Schedule::run(now);
 
 		struct Data data;
 		if (!RTC::now(&data.time)) return;
 		OLED::home();
+		any_print("Mesaure device ");
+		any_println(DEVICE_ID);
 		COM::print("Time: ");
 		any_println(String(data.time));
 
@@ -1562,6 +1589,7 @@ namespace LORA {
 			}
 
 			static void SEND(signed int const packet_size) {
+				Debug::println("DEBUG: LoRa::Received::SEND");
 				size_t const overhead_size =
 					sizeof (PacketType)     /* packet type */
 					+ sizeof (Device)       /* receiver */
@@ -1633,7 +1661,7 @@ namespace LORA {
 				LORA::Receive::last_serial[device] = serial;
 				#ifdef ENABLE_OLED_OUTPUT
 					OLED::home();
-					OLED::print("Device ");
+					OLED::print("Receive ");
 					OLED::print(device);
 					OLED::print(" Serial ");
 					OLED::println(serial);
@@ -1664,10 +1692,9 @@ namespace LORA {
 					OLED::display();
 				#endif
 
-				if (!WIFI::upload(device, serial, &data)) {
-					OLED::display();
-					return;
-				}
+				bool const OK = WIFI::upload(device, serial, &data);
+				OLED::display();
+				if (!OK) return;
 
 				Device router;
 				std::memcpy(&router, content + sizeof device, sizeof router);
@@ -1810,25 +1837,25 @@ namespace LORA {
 			switch (packet_type) {
 			case PACKET_TIME:
 				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::received::TIME");
+					Debug::println("DEBUG: LoRa::Received::packet TIME");
 				#endif
 				TIME(packet_size);
 				break;
 			case PACKET_ASKTIME:
 				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::received::ASKTIME");
+					Debug::println("DEBUG: LoRa::Received::packet ASKTIME");
 				#endif
 				ASKTIME(packet_size);
 				break;
 			case PACKET_SEND:
 				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::received::SEND");
+					Debug::println("DEBUG: LoRa::Received::packet SEND");
 				#endif
 				SEND(packet_size);
 				break;
 			case PACKET_ACK:
 				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::received::ACK");
+					Debug::println("DEBUG: LoRa::Received::packet ACK");
 				#endif
 				ACK(packet_size);
 				break;

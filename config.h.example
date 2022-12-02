@@ -21,11 +21,13 @@
 //#define ENABLE_LED
 //#define ENABLE_COM_OUTPUT
 //#define ENABLE_OLED_OUTPUT
-//#define ENABLE_SD_CARD
-//#if DEVICE_ID != 0
+#if defined(ENABLE_MEASURE)
+//	#define ENABLE_SD_CARD
+#endif
+#if !defined(ENABLE_GATEWAY)
 //	#define ENABLE_SLEEP
 //	#define ENABLE_CLOCK CLOCK_DS3231
-//#endif
+#endif
 //#define ENABLE_BATTERY_GAUGE BATTERY_GAUGE_DFROBOT
 //#define ENABLE_DALLAS
 //#define ENABLE_BME280
@@ -34,8 +36,8 @@
 /* Software Parameters */
 #define WIFI_SSID "My WiFi ID"
 #define WIFI_PASS "WiFi password"
-#define HTTP_UPLOAD_FORMAT "http://www.example.com/upload?device=%1$u&serial=%2$u&time=%3$s"
 #define HTTP_UPLOAD_LENGTH 256
+#define HTTP_UPLOAD_FORMAT "http://www.example.com/upload?device=%1$u&serial=%2$u&time=%3$s"
 #define HTTP_AUTHORIZATION_TYPE ""
 #define HTTP_AUTHORIZATION_CODE ""
 #define NTP_SERVER "stdtime.gov.hk"
@@ -47,6 +49,7 @@
 #define ACK_TIMEOUT 1000UL /* milliseconds */
 #define SEND_INTERVAL 6000UL /* milliseconds */ /* MUST: > ACK_TIMEOUT * RESEND_TIMES */
 #define MEASURE_INTERVAL 60000UL /* milliseconds */ /* MUST: > SEND_INTERVAL */
+#define ROUTER_TOPOLOGY {}
 
 /* Hardware Parameters */
 #if !defined(ENABLE_GATEWAY)
