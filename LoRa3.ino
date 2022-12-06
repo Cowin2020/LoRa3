@@ -147,7 +147,11 @@ namespace COM {
 		template <typename TYPE> inline void println([[maybe_unused]] TYPE x) {}
 		template <typename TYPE> inline void print([[maybe_unused]] TYPE x, [[maybe_unused]] int option) {}
 		template <typename TYPE> inline void println([[maybe_unused]] TYPE x, [[maybe_unused]] int option) {}
-		inline static void dump([[maybe_unused]] void *const memory, [[maybe_unused]] size_t const size) {}
+		inline static void dump(
+			[[maybe_unused]] char const *const label,
+			[[maybe_unused]] void *const memory,
+			[[maybe_unused]] size_t const size
+		) {}
 	#endif
 }
 
@@ -259,6 +263,14 @@ namespace Debug {
 		#if !defined(NDEBUG)
 			COM::println(x);
 		#endif
+	}
+
+	inline void dump(
+		[[maybe_unused]] char const *const label,
+		[[maybe_unused]] void const *const memory,
+		[[maybe_unused]] size_t const size
+	) {
+		COM::dump(label, memory, size);
 	}
 
 	[[maybe_unused]]
@@ -871,6 +883,7 @@ namespace LORA {
 		static bool payload(char const *const message, void const *const payload, size_t const size) {
 			Debug::print("DEBUG: LORA::Send::payload ");
 			Debug::println(message);
+
 			uint8_t nonce[CIPHER_IV_LENGTH];
 			RNG.rand(nonce, sizeof nonce);
 			AuthCipher cipher;
@@ -899,6 +912,8 @@ namespace LORA {
 			LoRa.write(nonce, sizeof nonce);
 			LoRa.write((uint8_t const *)&ciphertext, sizeof ciphertext);
 			LoRa.write((uint8_t const *)&tag, sizeof tag);
+
+			Debug::dump("DEBUG: LoRa::Send::payload", payload, size);
 			return true;
 		}
 
@@ -912,6 +927,11 @@ namespace LORA {
 		}
 
 		static void SEND(Device const receiver, SerialNumber const serial, Data const *const data) {
+			Debug::print("DEBUG: LoRa::Send::SEND receiver=");
+			Debug::print(receiver);
+			Debug::print(" serial=");
+			Debug::println(serial);
+
 			Device const device = DEVICE_ID;
 			unsigned char payload[2 * sizeof device + sizeof serial + sizeof *data];
 			std::memcpy(payload, &device, sizeof device);
@@ -1059,7 +1079,8 @@ namespace LORA {
 		static void initialize(void);
 	} sender_schedule;
 
-	Sender::Sender(void) : Schedule(SEND_INTERVAL), unsleep() {}
+	Sender::Sender(void) : Schedule(SEND_INTERVAL), unsleep() {
+	}
 
 	Device Sender::next_router(void) {
 		/* Return next router or DEVICE_ID if no more routers */
@@ -1088,8 +1109,6 @@ namespace LORA {
 	}
 
 	void Sender::run(Time const now) {
-		Debug::print("Sender::run ");
-		Debug::println(now);
 		Schedule::run(now);
 		if (retry) {
 			--retry;
@@ -1557,6 +1576,8 @@ namespace LORA {
 				#endif
 				return false;
 			}
+
+			Debug::dump("DEBUG: LoRa::Receive::payload", content, size);
 			return true;
 		}
 
@@ -1592,11 +1613,14 @@ namespace LORA {
 					return;
 				}
 
+				Debug::print("DEBUG: LoRa::Receive::ASKTIME ");
+				Debug::println(device);
+
 				synchronize_schedule.run(millis());
 			}
 
 			static void SEND(signed int const packet_size) {
-				Debug::println("DEBUG: LoRa::Received::SEND");
+				Debug::println("DEBUG: LoRa::Receive::SEND");
 				size_t const overhead_size =
 					sizeof (PacketType)     /* packet type */
 					+ sizeof (Device)       /* receiver */
@@ -1744,6 +1768,9 @@ namespace LORA {
 				#endif
 				RTC::set(time);
 
+				Debug::print("DEBUG: LoRa::Receive::TIME ");
+				Debug::println(String(time));
+
 				LoRa.beginPacket();
 				LoRa.write(PacketType(PACKET_TIME));
 				LoRa.write(Device(DEVICE_ID));
@@ -1764,6 +1791,7 @@ namespace LORA {
 					+ sizeof (Device)       /* router list length >= 1 */
 					+ sizeof (SerialNumber) /* serial code */
 					+ sizeof (struct Data); /* data */
+
 				if (!(packet_size >= minimal_packet_size)) {
 					COM::print("LoRa SEND: incorrect packet size: ");
 					COM::println(packet_size);
@@ -1771,12 +1799,18 @@ namespace LORA {
 				}
 				Device receiver;
 				if (LoRa.readBytes(&receiver, sizeof receiver) != sizeof receiver) return;
+				Debug::print("DEBUG: LoRa::Receive::SEND receiver=");
+				Debug::println(receiver);
 				if (receiver != Device(DEVICE_ID)) return;
 				unsigned char content[sizeof (Device) + packet_size - overhead_size];
 				if (!LORA::Receive::payload("SEND", content + 1, sizeof content - 1)) return;
 
 				std::memcpy(content, content + sizeof (Device), sizeof (Device));
 				std::memcpy(content + sizeof (Device), &receiver, sizeof (Device));
+
+				Debug::print("DEBUG: LoRa::Receive::SEND last_receiver=");
+				Debug::println(last_receiver);
+
 				LoRa.beginPacket();
 				LoRa.write(PacketType(PACKET_SEND));
 				LoRa.write(last_receiver);
@@ -1802,6 +1836,10 @@ namespace LORA {
 				}
 				Device receiver;
 				if (LoRa.readBytes(&receiver, sizeof receiver) != sizeof receiver) return;
+
+				Debug::print("DEBUG: LoRa::Receive::ACK receiver=");
+				Debug::println(receiver);
+
 				if (Device(DEVICE_ID) != receiver) return;
 				unsigned char content[packet_size - overhead_size];
 				if (!payload("ACK", content, sizeof content)) return;
@@ -1818,6 +1856,10 @@ namespace LORA {
 
 					SerialNumber serial;
 					std::memcpy(&serial, content + 2 * sizeof (Device), sizeof serial);
+
+					Debug::print("DEBUG: LoRa::Receive::ACK serial=");
+					Debug::println(serial);
+
 					if (!sender_schedule.stop_ack(serial)) return;
 
 					#ifdef ENABLE_SD_CARD
@@ -1826,6 +1868,11 @@ namespace LORA {
 
 					draw_received();
 				} else {
+					Debug::print("DEBUG: LoRa::Receive::ACK router=");
+					Debug::print(router1);
+					Debug::print(" terminal=");
+					Debug::println(terminal);
+
 					std::memcpy(content + sizeof terminal, &terminal, sizeof terminal);
 					LoRa.beginPacket();
 					LoRa.write(PacketType(PACKET_ACK));
@@ -1843,27 +1890,19 @@ namespace LORA {
 			if (LoRa.readBytes(&packet_type, sizeof packet_type) != sizeof packet_type) return;
 			switch (packet_type) {
 			case PACKET_TIME:
-				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::Received::packet TIME");
-				#endif
+				Debug::println("DEBUG: LoRa::Receive::packet TIME");
 				TIME(packet_size);
 				break;
 			case PACKET_ASKTIME:
-				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::Received::packet ASKTIME");
-				#endif
+				Debug::println("DEBUG: LoRa::Receive::packet ASKTIME");
 				ASKTIME(packet_size);
 				break;
 			case PACKET_SEND:
-				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::Received::packet SEND");
-				#endif
+				Debug::println("DEBUG: LoRa::Receive::packet SEND");
 				SEND(packet_size);
 				break;
 			case PACKET_ACK:
-				#if !defined(NDEBUG)
-					Debug::println("DEBUG: LoRa::Received::packet ACK");
-				#endif
+				Debug::println("DEBUG: LoRa::Receive::packet ACK");
 				ACK(packet_size);
 				break;
 			default:
@@ -1880,6 +1919,28 @@ namespace LORA {
 	static bool initialize(void) {
 		SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
 		LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
+
+		#if !defined(ENABLE_GATEWAY)
+			size_t const N = sizeof router_topology / sizeof *router_topology;
+			size_t i = 0;
+			for (size_t i = 0;; ++i) {
+				if (i >= N) {
+					last_receiver = 0;
+					break;
+				}
+				if (router_topology[i][1] == Device(DEVICE_ID)) {
+					last_receiver = router_topology[i][0];
+					break;
+				}
+				++i;
+			}
+		#endif
+
+		#if defined(ENABLE_GATEWAY)
+			for (size_t i = 0; i < NUMBER_OF_DEVICES; ++i)
+				LORA::Receive::last_serial[i] = 0;
+		#endif
+
 		if (LoRa.begin(LORA_BAND) == 1) {
 			any_println("LoRa initialized");
 			return true;
@@ -1887,10 +1948,6 @@ namespace LORA {
 			any_println("LoRa uninitialized");
 			return false;
 		}
-		#if defined(ENABLE_GATEWAY)
-			for (size_t i = 0; i < NUMBER_OF_DEVICES; ++i)
-				LORA::Receive::last_serial[i] = 0;
-		#endif
 	}
 }
 

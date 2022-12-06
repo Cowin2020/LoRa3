@@ -103,6 +103,13 @@ Create "config.h" in the root directory of repository.
 Define or undefine variables for configuration.
 The file "config.h.example" is an example of "config.h".
 
+NDEBUG
+------
+
+Skip debug codes.
+
+Type: defined or undefined
+
 DEVICE_ID
 ---------
 
