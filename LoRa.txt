@@ -1,0 +1,109 @@
+Data type and constants
+-----------------------
+	Type of packet (1 byte)
+		0: TIME
+		1: ASKTIME
+		2: ACK
+		3: SEND
+	Device ID (1 byte)
+		Each sender device has a unique ID.
+	Nonce (96 bits, 12 bytes)
+		Initialization vector randomize for each packet.
+	Serial code (4 bytes, natural number)
+		Monotonic increasing
+		Allow roll-back only if MSB is 1.
+	Repeater list
+		array of device ID, ended with terminal device ID
+	Time (7 bytes, binary format)
+		2 bytes year
+		1 byte month
+		1 byte day
+		1 byte hour
+		1 byte minute
+		1 byte second
+	Values (7-35 bytes, binary format)
+		7 bytes time
+		4 bytes float battery voltage if ENABLE_BATTERY_GAUGE
+		4 bytes float battery percentage if ENABLE_BATTERY_GAUGE
+		4 bytes float temperature from Dallas thermometer if ENABLE_DALLAS
+		4 bytes float temperature from BME280 if ENABLE_BME280
+		4 bytes float pressure from BME280 if ENABLE_BME280
+		4 bytes float humidity from BME280 if ENABLE_BME280
+		4 bytes float ultraviolet LTR390 sensor if ENABLE_LTR390
+
+Protocol of time synchronization
+--------------------------------
+	1. Gateway:
+		type TIME
+		sender device ID (gateway = 0)
+		nonce
+		encrypted
+			current time
+		authentication tag
+	2. Repeaters received from gateway or related repeaters:
+		type TIME
+		device ID (current device ID)
+		repeat nonce
+		repeat encrypted current time
+		repeat authentication tag
+
+Protocol of call for synchronization
+------------------------------------
+	1. Terminal:
+		type SYNCHRONIZE
+		receiver device ID (router or gateway)
+		nonce
+		encrypted
+			terminal device ID
+		authentication tag
+	2. Optional repeaters:
+		type SYNCHRONIZE
+		recerver device ID (next router or gateway)
+		nonce
+		encrypted
+			repeat terminal device ID
+		authentication tag
+
+Protocol of uploading data
+--------------------------
+	1. Terminal:
+		type SEND
+		receiver device ID (router or gateway)
+		nonce
+		encrypted
+			terminal device ID
+			router list containing only terminal device ID
+			serial code
+			values
+		authentication tag
+	2. Optional repeaters:
+		type SEND
+		recerver device ID (next router or gateway)
+		nonce
+		encrypted
+			repeat terminal device ID
+			router list: router device ID + repeat router list
+			repeat serial code
+			repeat values
+		authentication tag
+	3. Gateway:
+		type ACK
+		receiver device ID (router or terminal)
+		nonce
+		encrypted
+			terminal device ID
+			router list
+			serial code
+		authentication tag
+	4. Optional repeaters:
+		type ACK
+		receiver device ID (next router or terminal = first element of the router list)
+		none
+		encrypted
+			repeat terminal device ID
+			router list with first element removed
+			serial code
+		authentication tag
+	5. Terminal:
+		if ACK is received, done;
+		otherwise, if ACK not received and number of tries is not over limit, loop back to step 1.
