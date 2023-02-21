@@ -21,7 +21,7 @@
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 #define OLED_I2C_ADDR 0x3C
-#define LORA_BAND 868000000
+#define LORA_BAND 923000000
 
 /* Protocol Constants */
 #define PACKET_TIME    0
