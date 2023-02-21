@@ -1607,7 +1607,7 @@ namespace LORA {
 
 				Device device;
 				if (!payload("ASKTIME", &device, sizeof device)) return;
-				if (!(device > 0 && device <= NUMBER_OF_DEVICES)) {
+				if (!(device > 0 && device < NUMBER_OF_DEVICES)) {
 					COM::print("LoRa ASKTIME: incorrect device: ");
 					COM::println(device);
 					return;
@@ -1646,7 +1646,7 @@ namespace LORA {
 
 				Device device;
 				std::memcpy(&device, content, sizeof device);
-				if (!(device > 0 && device <= NUMBER_OF_DEVICES)) {
+				if (!(device > 0 && device < NUMBER_OF_DEVICES)) {
 					COM::print("LoRa SEND: incorrect device: ");
 					COM::println(device);
 					return;
