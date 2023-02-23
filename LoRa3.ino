@@ -1153,16 +1153,19 @@ namespace LORA {
 		Sleep::add_unsleep(&sender_schedule.unsleep);
 	}
 
-	void send_data(struct Data const *const data) {
+	bool send_data(struct Data const *const data) {
 		#if defined(ENABLE_GATEWAY)
 			if (WIFI::upload(DEVICE_ID, current_serial++, data)) {
 				draw_received();
+				return true;
 			} else {
 				COM::print("HTTP: unable to send data: time=");
 				COM::println(String(data->time));
+				return false;
 			}
 		#else
 			sender_schedule.start_send(data);
+			return false;
 		#endif
 	}
 
@@ -1240,7 +1243,7 @@ namespace LORA {
 				Debug::print("Push::run ");
 				Debug::println(now);
 				Schedule::run(now);
-				class File data_file = SD.open(DATA_FILE_PATH, "r");
+				class File data_file = SD.open(DATA_FILE_PATH, "r+");
 				if (!data_file) {
 					COM::println("Push: fail to open data file");
 					return;
@@ -1260,13 +1263,26 @@ namespace LORA {
 						COM::println("Push: invalid data");
 						break;
 					}
-
 					if (!sent) {
 						next_position = data_file.position();
-						send_data(&data);
+						if (send_data(&data)) {
+							Debug::print("DEBUG: Push: seek current position of data file: ");
+							Debug::println(current_position);
+							if (!data_file.seek(current_position)) {
+								COM::print("Push: fail to seek data file: ");
+								COM::println(current_position);
+							} else {
+								data_file.write('1');
+								Debug::print("DEBUG: Push: seek next position of data file: ");
+								Debug::println(next_position);
+								if (!data_file.seek(next_position)) {
+									COM::print("Push: fail to seek data file: ");
+									COM::println(next_position);
+								}
+							}
+						}
 						break;
 					}
-
 					current_position = data_file.position();
 				}
 				data_file.close();
