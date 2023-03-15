@@ -1243,7 +1243,7 @@ namespace LORA {
 				Debug::print("Push::run ");
 				Debug::println(now);
 				Schedule::run(now);
-				class File data_file = SD.open(DATA_FILE_PATH, "r+");
+				class File data_file = SD.open(DATA_FILE_PATH, "a+");
 				if (!data_file) {
 					COM::println("Push: fail to open data file");
 					return;
@@ -1290,7 +1290,7 @@ namespace LORA {
 
 			void Push::ack(void) {
 				if (current_position == next_position) return;
-				class File file = SD.open(data_file_path, "r+");
+				class File file = SD.open(data_file_path, "a+");
 				if (!file) {
 					COM::println("LoRa ACK: fail to open data file");
 					return;
@@ -1330,7 +1330,6 @@ namespace LORA {
 					any_println("SD card initialized");
 					COM::println(String("SD Card type: ") + String(SD.cardType()));
 					any_println("Cleaning up data file");
-					OLED::display();
 					cleanup();
 					any_println("Data file cleaned");
 					OLED::display();
