@@ -20,6 +20,7 @@
 /* Hardware Parameters */
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
+#define OLED_ROTATION 2
 #define OLED_I2C_ADDR 0x3C
 #define LORA_BAND 923000000
 
@@ -176,7 +177,7 @@ namespace OLED {
 		static void initialize(void) {
 			SSD1306.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDR);
 			SSD1306.invertDisplay(false);
-			SSD1306.setRotation(0);
+			SSD1306.setRotation(OLED_ROTATION);
 			SSD1306.setTextSize(1);
 			SSD1306.setTextColor(SSD1306_WHITE, SSD1306_BLACK);
 			SSD1306.clearDisplay();

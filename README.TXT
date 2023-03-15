@@ -374,6 +374,13 @@ The dimension of OLED display
 
 Type: positive numbers
 
+OLED_ROTATION
+-------------
+
+The rotation of the contents on OLED display
+
+Type: integer between in [0, 3]
+
 DALLAS_PIN
 ----------
 
