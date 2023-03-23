@@ -1244,13 +1244,13 @@ namespace LORA {
 				Debug::print("Push::run ");
 				Debug::println(now);
 				Schedule::run(now);
-				class File data_file = SD.open(DATA_FILE_PATH, "a+");
+				class File data_file = SD.open(DATA_FILE_PATH, "r+", true);
 				if (!data_file) {
 					COM::println("Push: fail to open data file");
 					return;
 				}
 				if (!data_file.seek(current_position)) {
-					COM::print("Push: cannot seek: ");
+					COM::print("Push: cannot seek to ");
 					COM::println(current_position);
 					data_file.close();
 					return;
@@ -1261,48 +1261,46 @@ namespace LORA {
 					bool const sent = s != "0";
 					struct Data data;
 					if (!data.readln(&data_file)) {
-						COM::println("Push: invalid data");
+						COM::print("Push: invalid data at ");
+						COM::println(data_file.position());
 						break;
 					}
-					if (!sent) {
-						next_position = data_file.position();
+					next_position = data_file.position();
+					if (sent) {
+						current_position = next_position;
+					} else {
 						if (send_data(&data)) {
-							Debug::print("DEBUG: Push: seek current position of data file: ");
-							Debug::println(current_position);
 							if (!data_file.seek(current_position)) {
 								COM::print("Push: fail to seek data file: ");
 								COM::println(current_position);
 							} else {
 								data_file.write('1');
-								Debug::print("DEBUG: Push: seek next position of data file: ");
-								Debug::println(next_position);
-								if (!data_file.seek(next_position)) {
-									COM::print("Push: fail to seek data file: ");
-									COM::println(next_position);
-								}
+								current_position = next_position;
 							}
 						}
 						break;
 					}
-					current_position = data_file.position();
 				}
 				data_file.close();
 			}
 
 			void Push::ack(void) {
+				Debug::print("Push::run ");
+				Debug::println(now);
 				if (current_position == next_position) return;
-				class File file = SD.open(data_file_path, "a+");
-				if (!file) {
+				class File data_file = SD.open(data_file_path, "r+");
+				if (!data_file) {
 					COM::println("LoRa ACK: fail to open data file");
 					return;
 				}
-				if (!file.seek(current_position)) {
+				if (!data_file.seek(current_position)) {
 					COM::print("LoRa ACK: fail to seek data file: ");
 					COM::println(current_position);
+					data_file.close();
 					return;
 				}
-				file.write('1');
-				file.close();
+				data_file.write('1');
+				data_file.close();
 
 				current_position = next_position;
 
