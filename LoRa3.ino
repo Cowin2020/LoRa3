@@ -150,7 +150,7 @@ namespace COM {
 		template <typename TYPE> inline void println([[maybe_unused]] TYPE x, [[maybe_unused]] int option) {}
 		inline static void dump(
 			[[maybe_unused]] char const *const label,
-			[[maybe_unused]] void *const memory,
+			[[maybe_unused]] void const *const memory,
 			[[maybe_unused]] size_t const size
 		) {}
 	#endif
