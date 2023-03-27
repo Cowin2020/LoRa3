@@ -45,6 +45,18 @@
 	#error "ERROR: undefined NUMBER_OF_DEVICES"
 #endif
 
+#if !defined(ENABLE_GATEWAY)
+	#define CPU_FREQUENCY 20 /* MUST: >= 20 for LoRa, and >= 80 for WiFi */
+#endif
+#if defined(ENABLE_GATEWAY) && defined(CPU_FREQUENCY) && !(CPU_FREQUENCY >= 80)
+	#undef CPU_FREQUENCY
+	#define CPU_FREQUENCY 80
+#endif
+#if defined(CPU_FREQUENCY) && !(CPU_FREQUENCY >= 20)
+	#undef CPU_FREQUENCY
+	#define CPU_FREQUENCY 20
+#endif
+
 #ifndef SEND_INTERVAL
 	#define SEND_INTERVAL (ACK_TIMEOUT * (RESEND_TIMES + 2))
 #endif
