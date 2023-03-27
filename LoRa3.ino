@@ -1285,8 +1285,7 @@ namespace LORA {
 			}
 
 			void Push::ack(void) {
-				Debug::print("Push::run ");
-				Debug::println(now);
+				Debug::println("Push::ack");
 				if (current_position == next_position) return;
 				class File data_file = SD.open(data_file_path, "r+");
 				if (!data_file) {
