@@ -2010,6 +2010,10 @@ void setup(void) {
 	Sender::initialize();
 
 	OLED::display();
+
+	#if !defined(ENABLE_SLEEP)
+		LORA::Send::ASKTIME();
+	#endif
 }
 
 void loop(void) {
