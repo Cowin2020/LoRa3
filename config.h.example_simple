@@ -44,7 +44,6 @@
 #define SECRET_KEY "This is secret!"
 
 #define NTP_INTERVAL 654321UL /* milliseconds */
-#define SYNCHONIZE_INTERVAL 7654321UL /* milliseconds */
 #define RESEND_TIMES 3
 #define ACK_TIMEOUT 1000UL /* milliseconds */
 #define SEND_INTERVAL 6000UL /* milliseconds */ /* MUST: > ACK_TIMEOUT * RESEND_TIMES */
