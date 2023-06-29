@@ -2019,6 +2019,7 @@ void setup(void) {
 void loop(void) {
 	if (setup_error) {
 		LED::flash();
+		OLED::display();
 		return;
 	}
 	LORA::Receive::packet();
