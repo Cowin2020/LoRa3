@@ -1990,24 +1990,25 @@ void setup(void) {
 		setCpuFrequencyMhz(CPU_FREQUENCY);
 	#endif
 
-	setup_error = !RTC::initialize();
-	if (setup_error) return;
+	if (!setup_error)
+		setup_error = !RTC::initialize();
 
-	setup_error = !SD_CARD::initialize();
-	if (setup_error) return;
+	if (!setup_error)
+		setup_error = !SD_CARD::initialize();
 
-	WIFI::initialize();
+	if (!setup_error) {
+		WIFI::initialize();
+		setup_error = !LORA::initialize();
+	}
 
-	setup_error = !LORA::initialize();
-	if (setup_error) return;
+	if (!setup_error) {
+		Synchronize::initialize();
+		AskTime::initialize();
+		setup_error = !Measure::initialize();
+	}
 
-	Synchronize::initialize();
-	AskTime::initialize();
-
-	setup_error = !Measure::initialize();
-	if (setup_error) return;
-
-	Sender::initialize();
+	if (!setup_error)
+		Sender::initialize();
 
 	OLED::display();
 
@@ -2019,7 +2020,6 @@ void setup(void) {
 void loop(void) {
 	if (setup_error) {
 		LED::flash();
-		OLED::display();
 		return;
 	}
 	LORA::Receive::packet();
