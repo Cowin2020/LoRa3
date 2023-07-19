@@ -1269,7 +1269,10 @@ namespace LORA {
 				}
 				for (;;) {
 					class String const s = data_file.readStringUntil(',');
-					if (!s.length()) break;
+					if (!s.length()) {
+						stop();
+						break;
+					}
 					bool const sent = s != "0";
 					struct Data data;
 					if (!data.readln(&data_file)) {
