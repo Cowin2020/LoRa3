@@ -1511,6 +1511,7 @@ namespace LORA {
 		/* Schedule to measure */
 		Schedules::add(&measure_schedule);
 		measure_schedule.start(0);
+		measure_schedule.run(0);
 
 		return true;
 	}
