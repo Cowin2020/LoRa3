@@ -1912,23 +1912,25 @@ namespace LORA {
 		static void packet(void) {
 			signed int const packet_size = LoRa.parsePacket();
 			if (packet_size < 1) return;
+			Debug::print("DEBUG: LORA::Receive::packet packet_size ");
+			Debug::println(packet_size);
 			PacketType packet_type;
 			if (LoRa.readBytes(&packet_type, sizeof packet_type) != sizeof packet_type) return;
 			switch (packet_type) {
 			case PACKET_TIME:
-				Debug::println("DEBUG: LoRa::Receive::packet TIME");
+				Debug::println("DEBUG: LORA::Receive::packet TIME");
 				TIME(packet_size);
 				break;
 			case PACKET_ASKTIME:
-				Debug::println("DEBUG: LoRa::Receive::packet ASKTIME");
+				Debug::println("DEBUG: LORA::Receive::packet ASKTIME");
 				ASKTIME(packet_size);
 				break;
 			case PACKET_SEND:
-				Debug::println("DEBUG: LoRa::Receive::packet SEND");
+				Debug::println("DEBUG: LORA::Receive::packet SEND");
 				SEND(packet_size);
 				break;
 			case PACKET_ACK:
-				Debug::println("DEBUG: LoRa::Receive::packet ACK");
+				Debug::println("DEBUG: LORA::Receive::packet ACK");
 				ACK(packet_size);
 				break;
 			default:
