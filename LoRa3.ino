@@ -2110,6 +2110,14 @@ void loop(void) {
 	WIFI::loop();
 	Schedules::tick();
 	RNG.loop();
+
+	#if defined(ENABLE_GATEWAY)
+		static unsigned long last_boot = 0;
+		if (millis() > last_boot + 43200000) {
+			last_boot = millis();
+			esp_restart();
+		}
+	#endif
 }
 
 /* ************************************************************************** */
