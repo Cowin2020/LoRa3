@@ -1075,6 +1075,10 @@ namespace LORA {
 		inline static void draw_received(void) {}
 	#endif
 
+	#if defined(ENABLE_SD_CARD)
+		static bool lock_push = false;
+	#endif
+
 	class Sender : public Schedule {
 	protected:
 		unsigned int retry;
@@ -1130,6 +1134,9 @@ namespace LORA {
 			Device const next = next_router();
 			if (next == DEVICE_ID) {
 				stop();
+				#if defined(ENABLE_SD_CARD)
+					lock_push = true;
+				#endif
 			} else {
 				receiver = next;
 				retry = RESEND_TIMES;
@@ -1255,6 +1262,7 @@ namespace LORA {
 			void Push::run(Time const now) {
 				Debug::print("Push::run ");
 				Debug::println(now);
+				if (lock_push) return;
 				Schedule::run(now);
 				class File data_file = SD.open(DATA_FILE_PATH, "r+", true);
 				if (!data_file) {
@@ -1464,6 +1472,7 @@ namespace LORA {
 	#if defined(ENABLE_SD_CARD)
 		void Measure::measured(Time const now, struct Data const *const data) {
 			SD_CARD::append(data);
+			lock_push = false;
 			SD_CARD::push_schedule.start(now);
 		}
 	#else
