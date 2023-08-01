@@ -673,37 +673,37 @@ struct [[gnu::packed]] Data {
 
 void Data::writeln(class Print *const print) const {
 	print->printf(
-		"%04u-%02u-%02uT%02u:%02u:%02uZ",
+		"%04u-%02u-%02uT%02u:%02u:%02uZ,",
 		this->time.year, this->time.month, this->time.day,
 		this->time.hour, this->time.minute, this->time.second
 	);
 	#ifdef ENABLE_BATTERY_GAUGE
 		print->printf(
-			",%f,%f",
+			"%f,%f,",
 			this->battery_voltage, this->battery_percentage
 		);
 	#endif
 	#ifdef ENABLE_DALLAS
 		print->printf(
-			",%f",
+			"%f,",
 			this->dallas_temperature
 		);
 	#endif
 	#ifdef ENABLE_SHT40
 		print->printf(
-			",%f,%f",
+			"%f,%f,",
 			this->sht40_temperature, this->sht40_humidity
 		);
 	#endif
 	#ifdef ENABLE_BME280
 		print->printf(
-			",%f,%f,%f",
+			"%f,%f,%f,",
 			this->bme280_temperature, this->bme280_pressure, this->bme280_humidity
 		);
 	#endif
 	#ifdef ENABLE_LTR390
 		print->printf(
-			",%f",
+			"%f,",
 			this->ltr390_ultraviolet
 		);
 	#endif
@@ -713,13 +713,7 @@ void Data::writeln(class Print *const print) const {
 bool Data::readln(class Stream *const stream) {
 	/* Time */
 	{
-		class String const s = stream->readStringUntil(
-			#if defined(ENABLE_BATTERY_GAUGE) || defined(ENABLE_DALLAS) || defined(ENABLE_SHT40) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
-				','
-			#else
-				'\n'
-			#endif
-		);
+		class String const s = stream->readStringUntil(',');
 		if (
 			sscanf(
 				s.c_str(),
@@ -737,13 +731,7 @@ bool Data::readln(class Stream *const stream) {
 			if (sscanf(s.c_str(), "%f", &this->battery_voltage) != 1) return false;
 		}
 		{
-			class String const s = stream->readStringUntil(
-				#if defined(ENABLE_DALLAS) || defined(ENABLE_SHT40) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
-					','
-				#else
-					'\n'
-				#endif
-			);
+			class String const s = stream->readStringUntil(',');
 			if (sscanf(s.c_str(), "%f", &this->battery_percentage) != 1) return false;
 		}
 	#endif
@@ -751,13 +739,7 @@ bool Data::readln(class Stream *const stream) {
 	/* Dallas thermometer */
 	#ifdef ENABLE_DALLAS
 		{
-			class String const s = stream->readStringUntil(
-				#if defined(ENABLE_SHT40) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
-					','
-				#else
-					'\n'
-				#endif
-			);
+			class String const s = stream->readStringUntil(',');
 			if (sscanf(s.c_str(), "%f", &this->dallas_temperature) != 1) return false;
 		}
 	#endif
@@ -769,13 +751,7 @@ bool Data::readln(class Stream *const stream) {
 			if (sscanf(s.c_str(), "%f", &this->sht40_temperature) != 1) return false;
 		}
 		{
-			class String const s = stream->readStringUntil(
-				#if defined(ENABLE_BME280) || defined(ENABLE_LTR390)
-					','
-				#else
-					'\n'
-				#endif
-			);
+			class String const s = stream->readStringUntil(',');
 			if (sscanf(s.c_str(), "%f", &this->sht40_humidity) != 1) return false;
 		}
 	#endif
@@ -791,13 +767,7 @@ bool Data::readln(class Stream *const stream) {
 			if (sscanf(s.c_str(), "%f", &this->bme280_pressure) != 1) return false;
 		}
 		{
-			class String const s = stream->readStringUntil(
-				#if defined(ENABLE_LTR390)
-					','
-				#else
-					'\n'
-				#endif
-			);
+			class String const s = stream->readStringUntil(',');
 			if (sscanf(s.c_str(), "%f", &this->bme280_humidity) != 1) return false;
 		}
 	#endif
@@ -805,11 +775,12 @@ bool Data::readln(class Stream *const stream) {
 	/* LTR390 sensor */
 	#ifdef ENABLE_LTR390
 		{
-			class String const s = stream->readStringUntil('\n');
+			class String const s = stream->readStringUntil(',');
 			if (sscanf(s.c_str(), "%f", &this->ltr390_ultraviolet) != 1) return false;
 		}
 	#endif
 
+	stream->readStringUntil('\n');
 	return true;
 }
 
@@ -1228,8 +1199,11 @@ namespace LORA {
 			static class SPIClass SPI_1(HSPI);
 
 			static void cleanup(void) {
-				SD.remove(cleanup_file_path);
-				if (!SD.rename(data_file_path, cleanup_file_path)) return;
+				if (SD.exists(data_file_path)) {
+					SD.remove(cleanup_file_path);
+					if (!SD.rename(data_file_path, cleanup_file_path)) return;
+				}
+				if (!SD.exists(cleanup_file_path)) return;
 				class File cleanup_file = SD.open(cleanup_file_path, "r");
 				if (!cleanup_file) {
 					COM::println("Fail to open clean-up file");
