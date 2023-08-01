@@ -654,6 +654,10 @@ struct [[gnu::packed]] Data {
 	#ifdef ENABLE_DALLAS
 		float dallas_temperature;
 	#endif
+	#ifdef ENABLE_SHT40
+		float sht40_temperature;
+		float sht40_humidity;
+	#endif
 	#ifdef ENABLE_BME280
 		float bme280_temperature;
 		float bme280_pressure;
@@ -685,6 +689,12 @@ void Data::writeln(class Print *const print) const {
 			this->dallas_temperature
 		);
 	#endif
+	#ifdef ENABLE_SHT40
+		print->printf(
+			",%f,%f",
+			this->sht40_temperature, this->sht40_humidity
+		);
+	#endif
 	#ifdef ENABLE_BME280
 		print->printf(
 			",%f,%f,%f",
@@ -704,7 +714,7 @@ bool Data::readln(class Stream *const stream) {
 	/* Time */
 	{
 		class String const s = stream->readStringUntil(
-			#if defined(ENABLE_DALLAS) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
+			#if defined(ENABLE_BATTERY_GAUGE) || defined(ENABLE_DALLAS) || defined(ENABLE_SHT40) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
 				','
 			#else
 				'\n'
@@ -728,7 +738,7 @@ bool Data::readln(class Stream *const stream) {
 		}
 		{
 			class String const s = stream->readStringUntil(
-				#if defined(ENABLE_DALLAS) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
+				#if defined(ENABLE_DALLAS) || defined(ENABLE_SHT40) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
 					','
 				#else
 					'\n'
@@ -742,13 +752,31 @@ bool Data::readln(class Stream *const stream) {
 	#ifdef ENABLE_DALLAS
 		{
 			class String const s = stream->readStringUntil(
-				#if defined(ENABLE_BME280) || defined(ENABLE_LTR390)
+				#if defined(ENABLE_SHT40) || defined(ENABLE_BME280) || defined(ENABLE_LTR390)
 					','
 				#else
 					'\n'
 				#endif
 			);
 			if (sscanf(s.c_str(), "%f", &this->dallas_temperature) != 1) return false;
+		}
+	#endif
+
+	/* Dallas thermometer */
+	#ifdef ENABLE_SHT40
+		{
+			class String const s = stream->readStringUntil(',');
+			if (sscanf(s.c_str(), "%f", &this->sht40_temperature) != 1) return false;
+		}
+		{
+			class String const s = stream->readStringUntil(
+				#if defined(ENABLE_BME280) || defined(ENABLE_LTR390)
+					','
+				#else
+					'\n'
+				#endif
+			);
+			if (sscanf(s.c_str(), "%f", &this->sht40_humidity) != 1) return false;
 		}
 	#endif
 
@@ -838,6 +866,10 @@ bool Data::readln(class Stream *const stream) {
 				#endif
 				#ifdef ENABLE_DALLAS
 					, data->dallas_temperature
+				#endif
+				#ifdef ENABLE_SHT40
+					, data->sht40_temperature
+					, data->sht40_humidity
 				#endif
 				#ifdef ENABLE_BME280
 					, data->bme280_temperature
@@ -1386,6 +1418,12 @@ namespace LORA {
 		static class DallasTemperature dallas(&onewire_thermometer);
 	#endif
 
+	#ifdef ENABLE_SHT40
+		#include <Adafruit_SHT4x.h>
+
+		static class Adafruit_SHT4x SHT = Adafruit_SHT4x();
+	#endif
+
 	#ifdef ENABLE_BME280
 		#include <Adafruit_Sensor.h>
 		#include <Adafruit_BME280.h>
@@ -1429,7 +1467,7 @@ namespace LORA {
 				data.battery_voltage = battery.cellVoltage();
 				data.battery_percentage = battery.cellPercent();
 			#endif
-			any_print("Battery: ");
+			any_print("Bat: ");
 			any_print(data.battery_voltage);
 			any_print("V ");
 			any_print(data.battery_percentage);
@@ -1440,6 +1478,19 @@ namespace LORA {
 			data.dallas_temperature = dallas.getTempCByIndex(0);
 			any_print("Dallas temp.: ");
 			any_println(data.dallas_temperature);
+		#endif
+
+		#if defined(ENABLE_SHT40)
+			{
+				sensors_event_t temperature_event, humidity_event;
+				SHT.getEvent(&humidity_event, &temperature_event);
+				data.sht40_temperature = temperature_event.temperature;
+				data.sht40_humidity = humidity_event.relative_humidity;
+				any_print("SHT temp.: ");
+				any_println(data.sht40_temperature);
+				any_print("SHT humidity: ");
+				any_println(data.sht40_humidity);
+			}
 		#endif
 
 		#if defined(ENABLE_BME280)
@@ -1497,6 +1548,18 @@ namespace LORA {
 				any_println("Thermometer 0 not found");
 				return false;
 			}
+		#endif
+
+		/* Initialize SHT40 sensor */
+		#if defined(ENABLE_SHT40)
+			if (SHT.begin()) {
+				any_println("SHT40 sensor found");
+			} else {
+				any_println("SHT40 sensor not found");
+				return false;
+			}
+			SHT.setPrecision(SHT4X_HIGH_PRECISION);
+			SHT.setHeater(SHT4X_NO_HEATER);
 		#endif
 
 		/* Initialize BME280 sensor */
@@ -1735,18 +1798,24 @@ namespace LORA {
 					OLED::print(" Serial ");
 					OLED::println(serial);
 					OLED::println(String(data.time));
-					#ifdef ENABLE_BATTERY_GAUGE
+					#if defined(ENABLE_BATTERY_GAUGE)
 						OLED::print("Battery:");
 						OLED::print(data.battery_voltage);
 						OLED::print("V ");
 						OLED::print(data.battery_percentage);
 						OLED::println('%');
 					#endif
-					#ifdef ENABLE_DALLAS
+					#if defined(ENABLE_DALLAS)
 						OLED::print("Dallas temp.: ");
 						OLED::println(data.dallas_temperature);
 					#endif
-					#ifdef ENABLE_BME280
+					#if defined(ENABLE_SHT40)
+						OLED::print("SHT temp.: ");
+						OLED::println(data.sht40_temperature);
+						OLED::print("SHT humidity: ");
+						OLED::println(data.sht40_humidity);
+					#endif
+					#if defined(ENABLE_BME280)
 						OLED::print("BME temp.: ");
 						OLED::println(data.bme280_temperature);
 						OLED::print("BME pressure: ");
@@ -1754,7 +1823,7 @@ namespace LORA {
 						OLED::print("BME humidity: ");
 						OLED::println(data.bme280_humidity);
 					#endif
-					#ifdef ENABLE_LTR390
+					#if defined(ENABLE_LTR390)
 						OLED::print("LTR UV: ");
 						OLED::println(data.ltr390_ultraviolet);
 					#endif
