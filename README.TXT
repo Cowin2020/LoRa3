@@ -76,6 +76,11 @@ DallasTemperature
 
 Dallas 1-wire temperature sensor
 
+Adafruit SHT4x Library
+----------------------
+
+SHT40 temperature and humidity sensor
+
 Adafruit BME280 Library
 -----------------------
 
