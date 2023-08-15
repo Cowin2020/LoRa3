@@ -48,6 +48,7 @@
 #define ACK_TIMEOUT 1000UL /* milliseconds */
 #define SEND_INTERVAL 6000UL /* milliseconds */ /* MUST: > ACK_TIMEOUT * RESEND_TIMES */
 #define MEASURE_INTERVAL 60000UL /* milliseconds */ /* MUST: > SEND_INTERVAL */
+//#define REBOOT_TIMEOUT 60 * 60 * 1000; /* milliseconds */
 #define ROUTER_TOPOLOGY {}
 
 /* Hardware Parameters */

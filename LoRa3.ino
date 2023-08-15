@@ -1657,6 +1657,7 @@ namespace LORA {
 		}
 
 		#if defined(ENABLE_GATEWAY)
+			static Time last_time = 0;
 			static SerialNumber last_serial[NUMBER_OF_DEVICES];
 
 			inline static void TIME([[maybe_unused]] signed int const packet_size) {}
@@ -1964,11 +1965,14 @@ namespace LORA {
 			}
 		#endif
 
-		static void packet(void) {
+		static void packet(Time const now) {
 			signed int const packet_size = LoRa.parsePacket();
 			if (packet_size < 1) return;
 			Debug::print("DEBUG: LORA::Receive::packet packet_size ");
 			Debug::println(packet_size);
+			#if defined(ENABLE_GATEWAY)
+				Receive::last_time = now;
+			#endif
 			PacketType packet_type;
 			if (LoRa.readBytes(&packet_type, sizeof packet_type) != sizeof packet_type) return;
 			switch (packet_type) {
@@ -1994,7 +1998,7 @@ namespace LORA {
 			}
 
 			/* add entropy to RNG */
-			unsigned long int const microseconds = micros();
+			unsigned long int const microseconds = micros() ^ now;
 			RNG.stir((uint8_t const *)&microseconds, sizeof microseconds, 8);
 		}
 	}
@@ -2080,7 +2084,12 @@ void loop(void) {
 		LED::flash();
 		return;
 	}
-	LORA::Receive::packet();
+	Time const now = millis();
+	LORA::Receive::packet(now);
+	#if defined(ENABLE_GATEWAY) && defined(REBOOT_TIMEOUT)
+		if (LORA::Receive::last_time - now > REBOOT_TIMEOUT)
+			esp_restart();
+	#endif
 	WIFI::loop();
 	Schedules::tick();
 	RNG.loop();

@@ -315,13 +315,23 @@ It can be undefined or set to zero to disable this function.
 Type: undefined or natural number
 
 MEASURE_INTERVAL
---------------
+----------------
 
 Period in milliseconds to measure data
 
 This value should be larger than UPLOAD_INTERVAL.
 
 Type: natural number
+
+REBOOT_TIMEOUT
+--------------
+
+Perion in milliseconds to reboot if the device has not received data
+
+This value should be larger than MEASURE_INTERVAL.
+It is applied on the gateway only.
+
+Type: undefined or natural number
 
 ROUTER_TOPOLOGY
 ---------------
