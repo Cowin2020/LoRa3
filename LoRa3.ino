@@ -939,7 +939,7 @@ namespace LORA {
 			LoRa.write(uint8_t(last_receiver));
 			Device const device = DEVICE_ID;
 			LORA::Send::payload("ASKTIME", &device, sizeof device);
-			LoRa.endPacket(true);
+			LoRa.endPacket();
 		}
 
 		static void SEND(Device const receiver, SerialNumber const serial, Data const *const data) {
@@ -958,7 +958,7 @@ namespace LORA {
 			LoRa.write(uint8_t(PACKET_SEND));
 			LoRa.write(uint8_t(receiver));
 			LORA::Send::payload("SEND", payload, sizeof payload);
-			LoRa.endPacket(true);
+			LoRa.endPacket();
 		}
 	}
 }
@@ -988,7 +988,7 @@ namespace LORA {
 		LoRa.write(PacketType(PACKET_TIME));
 		LoRa.write(Device(0));
 		LORA::Send::payload("TIME", &fulltime, sizeof fulltime);
-		LoRa.endPacket(true);
+		LoRa.endPacket();
 
 		OLED::home();
 		any_println("Synchronize: ");
@@ -1815,7 +1815,7 @@ namespace LORA {
 				LoRa.write(PacketType(PACKET_ACK));
 				LoRa.write(router);
 				LORA::Send::payload("ACK", content, router_list_size);
-				LoRa.endPacket(true);
+				LoRa.endPacket();
 			}
 
 			static void ACK([[maybe_unused]] signed int const packet_size) {}
@@ -1856,7 +1856,7 @@ namespace LORA {
 				LoRa.write(PacketType(PACKET_TIME));
 				LoRa.write(Device(DEVICE_ID));
 				LORA::Send::payload("TIME+", &time, sizeof time);
-				LoRa.endPacket(true);
+				LoRa.endPacket();
 			}
 
 			inline static void ASKTIME([[maybe_unused]] signed int const packet_size) {}
@@ -1896,7 +1896,7 @@ namespace LORA {
 				LoRa.write(PacketType(PACKET_SEND));
 				LoRa.write(last_receiver);
 				LORA::Send::payload("SEND+", content, sizeof content);
-				LoRa.endPacket(true);
+				LoRa.endPacket();
 			}
 
 			static void ACK(signed int const packet_size) {
@@ -1959,7 +1959,7 @@ namespace LORA {
 					LoRa.write(PacketType(PACKET_ACK));
 					LoRa.write(Device(router1));
 					LORA::Send::payload("ACK+", content + sizeof terminal, sizeof content - sizeof terminal);
-					LoRa.endPacket(true);
+					LoRa.endPacket();
 				}
 			}
 		#endif
