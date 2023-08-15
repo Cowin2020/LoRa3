@@ -1926,10 +1926,9 @@ namespace LORA {
 				unsigned char content[packet_size - overhead_size];
 				if (!payload("ACK", content, sizeof content)) return;
 
-				Device terminal, router0, router1;
+				Device terminal, router0;
 				std::memcpy(&terminal, content, sizeof terminal);
 				std::memcpy(&router0, content + sizeof terminal, sizeof router0);
-				std::memcpy(&router1, content + sizeof terminal + sizeof router0, sizeof router1);
 				if (Device(DEVICE_ID) == terminal) {
 					if (Device(DEVICE_ID) != router0) {
 						COM::print("LoRa ACK: dirty router list");
@@ -1950,6 +1949,8 @@ namespace LORA {
 
 					draw_received();
 				} else {
+					Device router1;
+					std::memcpy(&router1, content + sizeof terminal + sizeof router0, sizeof router1);
 					Debug::print("DEBUG: LoRa::Receive::ACK router=");
 					Debug::print(router1);
 					Debug::print(" terminal=");
