@@ -31,7 +31,6 @@
 /* Hardware Parameters */
 #define CPU_FREQUENCY 20
 #define COM_BAUD 115200
-#define DALLAS_PIN 3
 
 #undef LORA_BAND
 #define LORA_BAND 868000000
