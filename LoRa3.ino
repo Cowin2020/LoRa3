@@ -177,17 +177,22 @@ namespace OLED {
 		SSD1306.ssd1306_command(SSD1306_DISPLAYOFF);
 	}
 
-	//	static void turn_on(void) {
-	//		SSD1306.ssd1306_command(SSD1306_CHARGEPUMP);
-	//		SSD1306.ssd1306_command(0x14);
-	//		SSD1306.ssd1306_command(SSD1306_DISPLAYON);
-	//	}
-
 	#if defined(ENABLE_OLED_OUTPUT)
 		static class String message;
+		static bool switched_off;
+
+		static void turn_on(void) {
+			SSD1306.ssd1306_command(SSD1306_CHARGEPUMP);
+			SSD1306.ssd1306_command(0x14);
+			SSD1306.ssd1306_command(SSD1306_DISPLAYON);
+		}
 
 		static void initialize(void) {
 			SSD1306.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDR);
+			#if defined(ENABLE_OLED_SWITCH)
+				pinMode(ENABLE_OLED_SWITCH, INPUT);
+				switched_off = false;
+			#endif
 			SSD1306.invertDisplay(false);
 			SSD1306.setRotation(OLED_ROTATION);
 			SSD1306.setTextSize(1);
@@ -195,6 +200,22 @@ namespace OLED {
 			SSD1306.clearDisplay();
 			SSD1306.display();
 			SSD1306.setCursor(0, 0);
+		}
+
+		static void check_switch(void) {
+			#if defined(ENABLE_OLED_SWITCH)
+				if (digitalRead(ENABLE_OLED_SWITCH) == LOW) {
+					if (!switched_off) {
+						turn_off();
+						switched_off = true;
+					}
+				} else {
+					if (switched_off) {
+						turn_on();
+						switched_off = false;
+					}
+				}
+			#endif
 		}
 
 		inline static void home(void) {
@@ -233,6 +254,7 @@ namespace OLED {
 			SSD1306.begin(SSD1306_SWITCHCAPVCC, OLED_I2C_ADDR);
 			turn_off();
 		}
+		inline static void check_switch(void) {}
 		inline static void home(void) {}
 		template <typename TYPE> inline void print([[maybe_unused]] TYPE x) {}
 		template <typename TYPE> inline void println([[maybe_unused]] TYPE x) {}
@@ -2094,6 +2116,7 @@ void loop(void) {
 	WIFI::loop();
 	Schedules::tick();
 	RNG.loop();
+	OLED::check_switch();
 }
 
 /* ************************************************************************** */

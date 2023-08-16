@@ -166,6 +166,13 @@ Output message to OLED display
 
 Type: defined or undefined
 
+ENABLE_OLED_SWITCH
+------------------
+
+Switch on or off OLED by the input of a pin
+
+Type: undefined or natural number
+
 ENABLE_CLOCK
 ------------
 

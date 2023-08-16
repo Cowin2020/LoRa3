@@ -21,6 +21,7 @@
 //#define ENABLE_LED
 //#define ENABLE_COM_OUTPUT
 //#define ENABLE_OLED_OUTPUT
+//#define ENABLE_OLED_SWITCH 34
 #if defined(ENABLE_MEASURE)
 //	#define ENABLE_SD_CARD
 #endif
