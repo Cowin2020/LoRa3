@@ -1013,7 +1013,7 @@ namespace LORA {
 		LoRa.endPacket();
 
 		OLED::home();
-		any_println("Synchronize: ");
+		any_print("Synchronize: ");
 		any_println(String(fulltime));
 		OLED::display();
 	}
