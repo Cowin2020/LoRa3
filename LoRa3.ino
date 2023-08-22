@@ -918,7 +918,7 @@ namespace LORA {
 	static Device last_receiver = 0;
 
 	namespace Send {
-		static bool payload(char const *const message, void const *const payload, size_t const size) {
+		static bool payload(char const *const message, void const *const content, size_t const size) {
 			Debug::print("DEBUG: LORA::Send::payload ");
 			Debug::println(message);
 
@@ -943,15 +943,15 @@ namespace LORA {
 				#endif
 				return false;
 			}
-			char ciphertext[size];
-			cipher.encrypt((uint8_t *)&ciphertext, (uint8_t const *)payload, size);
+			uint8_t ciphertext[size];
+			cipher.encrypt(ciphertext, (uint8_t const *)content, size);
 			uint8_t tag[CIPHER_TAG_SIZE];
 			cipher.computeTag(tag, sizeof tag);
 			LoRa.write(nonce, sizeof nonce);
-			LoRa.write((uint8_t const *)&ciphertext, sizeof ciphertext);
-			LoRa.write((uint8_t const *)&tag, sizeof tag);
+			LoRa.write(ciphertext, sizeof ciphertext);
+			LoRa.write(tag, sizeof tag);
 
-			Debug::dump("DEBUG: LoRa::Send::payload", payload, size);
+			Debug::dump("DEBUG: LoRa::Send::payload", content, size);
 			return true;
 		}
 
