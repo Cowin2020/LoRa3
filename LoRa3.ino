@@ -12,6 +12,7 @@
 /* Software Parameters */
 #define DATA_FILE_PATH "/data.csv"
 #define CLEANUP_FILE_PATH "/cleanup.csv"
+#define LOG_FILE_PATH "/log.csv"
 #define SYNCHONIZE_INTERVAL 7654321UL /* milliseconds */
 #define SYNCHONIZE_MARGIN 1234UL /* milliseconds */
 #define CLEANLOG_INTERVAL 86400000UL /* milliseconds */
@@ -84,9 +85,12 @@ typedef uint32_t SerialNumber;
 typedef GCM<AES128> AuthCipher;
 
 static Device const router_topology[][2] = ROUTER_TOPOLOGY;
-static char const secret_key[16] PROGMEM = SECRET_KEY;
-static char const data_file_path[] PROGMEM = DATA_FILE_PATH;
-static char const cleanup_file_path[] PROGMEM = CLEANUP_FILE_PATH;
+static char const secret_key[16] = SECRET_KEY;
+#if defined(ENABLE_SD_CARD)
+	static char const data_file_path[] = DATA_FILE_PATH;
+	static char const cleanup_file_path[] = CLEANUP_FILE_PATH;
+	static char const log_file_path[] = LOG_FILE_PATH;
+#endif
 
 template <typename TYPE>
 uint8_t rand_int(void) {
@@ -1263,13 +1267,32 @@ namespace LORA {
 			}
 
 			static void append(struct Data const *const data) {
-				class File file = SD.open(data_file_path, "a");
-				if (!file) {
+				#if defined(ENABLE_LOG_FILE)
+					class File log_file = SD.open(log_file_path, "a");
+					if (!log_file) {
+						any_println("Cannot open log file");
+					}
+					else {
+						try {
+							data->writeln(&log_file);
+						} catch (...) {
+							any_println("Cannot append log file");
+						}
+						log_file.close();
+					}
+				#endif
+
+				class File data_file = SD.open(data_file_path, "a");
+				if (!data_file) {
 					any_println("Cannot append data file");
 				} else {
-					file.print("0,");
-					data->writeln(&file);
-					file.close();
+					try {
+						data_file.print("0,");
+						data->writeln(&data_file);
+					} catch (...) {
+						any_println("Cannot append data file");
+					}
+					data_file.close();
 				}
 			}
 
