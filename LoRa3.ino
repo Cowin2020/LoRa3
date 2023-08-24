@@ -2133,7 +2133,7 @@ void loop(void) {
 	Time const now = millis();
 	LORA::Receive::packet(now);
 	#if defined(ENABLE_GATEWAY) && defined(REBOOT_TIMEOUT)
-		if (LORA::Receive::last_time - now > REBOOT_TIMEOUT)
+		if (now - LORA::Receive::last_time > REBOOT_TIMEOUT)
 			esp_restart();
 	#endif
 	WIFI::loop();
