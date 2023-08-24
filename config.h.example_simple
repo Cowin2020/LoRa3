@@ -4,6 +4,8 @@
 
 /* Debug */
 #define NDEBUG
+//	#define DEBUG_CLEAN_OLD_DATA
+#define ENABLE_LOG_FILE
 
 /* Features */
 //#define ENABLE_MEASURE
