@@ -50,14 +50,14 @@ Protocol of time synchronization
 Protocol of call for synchronization
 ------------------------------------
 	1. Terminal:
-		type SYNCHRONIZE
+		type ASKTIME
 		receiver device ID (router or gateway)
 		nonce
 		encrypted
 			terminal device ID
 		authentication tag
 	2. Optional repeaters:
-		type SYNCHRONIZE
+		type ASKTIME
 		recerver device ID (next router or gateway)
 		nonce
 		encrypted
