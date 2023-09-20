@@ -1402,6 +1402,7 @@ namespace LORA {
 					any_println("SD card initialized");
 					COM::println(String("SD Card type: ") + String(SD.cardType()));
 					any_println("Cleaning up data file");
+					OLED::display();
 					cleanup();
 					any_println("Data file cleaned");
 					OLED::display();
