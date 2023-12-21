@@ -2,4 +2,5 @@ config.h
 *.swp
 /.vscode
 /build
+/backup
 /development
